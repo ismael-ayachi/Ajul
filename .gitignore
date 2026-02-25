@@ -1,0 +1,6 @@
+# IntelliJ IDEA
+/out/
+/.idea/
+
+# Submit.java
+/submissions/
