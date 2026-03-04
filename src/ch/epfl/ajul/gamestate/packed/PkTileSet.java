@@ -58,7 +58,8 @@ public final class PkTileSet {
     ///        la sorte de tuile
     /// @return l'ensemble empaqueté contenant uniquement {@code count} tuiles de la sorte {@code tileKind}
     public static int of(int count, TileKind tileKind) {
-        return count << tileKind.index() * (COLOR_BITS + 1);
+
+        return count << (tileKind.index() * (COLOR_BITS + 1));
     }
 
     /// Retourne vrai si et seulement si l'ensemble de tuiles empaqueté donné est vide.
@@ -115,7 +116,7 @@ public final class PkTileSet {
     ///        la sorte de tuile à ajouter
     /// @return l'ensemble empaqueté avec une tuile supplémentaire de la sorte donnée
     public static int add(int pkTileSet, TileKind tileKind) {
-        return pkTileSet + (1 << tileKind.index() * (COLOR_BITS + 1));
+        return pkTileSet + (1 << (tileKind.index() * (COLOR_BITS + 1)));
     }
 
     /// Retourne un ensemble de tuiles empaqueté égal à {@code pkTileSet} si ce n'est qu'il contient
@@ -127,7 +128,7 @@ public final class PkTileSet {
     ///        la sorte de tuile à retirer
     /// @return l'ensemble empaqueté avec une tuile en moins de la sorte donnée
     public static int remove(int pkTileSet, TileKind tileKind) {
-        return pkTileSet - (1 << tileKind.index() * (COLOR_BITS + 1));
+        return pkTileSet - (1 << (tileKind.index() * (COLOR_BITS + 1)));
     }
 
     /// Retourne l'union empaquetée des deux ensembles de tuiles empaquetés donnés.
@@ -191,12 +192,15 @@ public final class PkTileSet {
         for (TileKind.Colored tileKind : TileKind.Colored.ALL) {
             int numberOfTiles = countOf(pkTileSet, tileKind);
             for (int y = 0; y < numberOfTiles; y++) {
-                if (i == offset) {
-                    destination[offset] = tileKind;
+                int slot = i - offset; // position dans le reservoir
+                if (slot < destination.length - offset) {
+                    // reservoir pas encore plein, on remplit directement
+                    destination[offset + slot] = tileKind;
                 } else {
-                    int j = randomGenerator.nextInt(offset, i + 1);
-                    if (j == offset) {
-                        destination[offset] = tileKind;
+                    // reservoir plein, on remplace avec probabilité (destination.length - offset) / (slot + 1)
+                    int j = randomGenerator.nextInt(0, i - offset + 1);
+                    if (j < destination.length - offset) {
+                        destination[offset + j] = tileKind;
                     }
                 }
                 i++;
@@ -255,6 +259,7 @@ public final class PkTileSet {
                 return false;
             }
         }
+
         int extractFirstPlayerMarker = (pkTileSet >> COLOR_OFFSET_FIRST_PLAYER_MARKER) & ((COLOR_MASK_FIRST_PLAYER_MARKER << 1) | 1);
         return extractFirstPlayerMarker <= 1;
 

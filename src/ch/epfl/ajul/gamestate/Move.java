@@ -24,7 +24,7 @@ public record Move(TileSource source, TileKind.Colored tileColor, TileDestinatio
     /// Le nombre maximum de coups entre lesquels un joueur peut avoir à choisir,
     /// calculé comme le produit du nombre de fabriques, du nombre de couleurs de tuiles
     /// et du nombre de destinations.
-    public static final int MAX_MOVES = TileSource.Factory.COUNT * (TileKind.Colored.COUNT - 1) * TileDestination.COUNT;
+    public static final int MAX_MOVES = TileSource.Factory.COUNT * (TileSource.Factory.TILES_PER_FACTORY) * TileDestination.COUNT;
 
     /// Constructeur compact vérifiant qu'aucun des attributs n'est {@code null}.
     ///
