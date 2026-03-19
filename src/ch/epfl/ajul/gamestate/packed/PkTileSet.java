@@ -58,7 +58,6 @@ public final class PkTileSet {
     ///        la sorte de tuile
     /// @return l'ensemble empaqueté contenant uniquement {@code count} tuiles de la sorte {@code tileKind}
     public static int of(int count, TileKind tileKind) {
-
         return count << (tileKind.index() * (COLOR_BITS + 1));
     }
 

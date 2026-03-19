@@ -258,6 +258,7 @@ public final class PkWall {
     /// @param pkWall la valeur à vérifier
     /// @return {@code true} si {@code pkWall} est un mur empaqueté valide
     private static boolean isPkWallValid(int pkWall) {
+
         return (pkWall >> (WALL_HEIGHT * WALL_HEIGHT)) == EMPTY;
     }
 }
