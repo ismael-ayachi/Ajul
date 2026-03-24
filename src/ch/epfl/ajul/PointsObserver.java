@@ -2,7 +2,8 @@ package ch.epfl.ajul;
 
 public interface PointsObserver {
 
-    PointsObserver EMPTY = null;
+
+    PointsObserver EMPTY = new PointsObserver() {};
 
     default void newWallTile(PlayerId playerId, TileDestination.Pattern line, TileKind.Colored color, int points){}
     default void floor(PlayerId playerId, int penalty){}
