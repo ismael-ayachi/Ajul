@@ -54,7 +54,7 @@ public final class MutableGameState implements ReadOnlyGameState{
 
     @Override
     public ReadOnlyIntArray pkPlayerStates() {
-        return pkPlayerStates; //????
+        return ImmutableIntArray.copyOf(pkPlayerStates);
     }
 
     @Override
@@ -90,7 +90,12 @@ public final class MutableGameState implements ReadOnlyGameState{
                 coloredTilesIndex++;
             }
         }
+        pkUniqueTileSourcesUpdate();
 
+
+    }
+
+    private void pkUniqueTileSourcesUpdate() {
         pkUniqueTileSources = PkIntSet32.EMPTY;  // Nécessaire pour éviter une accumulation si plusieurs appels ?
         for (int i=pkTileSources().size() - 1 ; i >= 0; i--) {
             boolean isNotSame = false;
@@ -107,11 +112,14 @@ public final class MutableGameState implements ReadOnlyGameState{
 
             }
             if (isNotSame){
-                pkUniqueTileSources = PkIntSet32.add(pkUniqueTileSources, i );
+                pkUniqueTileSources = PkIntSet32.add(pkUniqueTileSources, i);
             }
 
         }
+
     }
+
+
 
     public void registerMove(short pkMove) {
         Move playerMove = Move.ofPacked(pkMove);
@@ -120,25 +128,29 @@ public final class MutableGameState implements ReadOnlyGameState{
         TileDestination playerMoveDestination = playerMove.destination();
         int pkTileSourcePlayerMove = pkTileSources[playerMoveSource.index()];
         int pkTileSourceColorCount = PkTileSet.countOf(pkTileSources().get(playerMoveSource.index()), playerMoveColor);
-        int pkFloorPlayer = PkFloor.EMPTY;
-        int pkPatternPlayer = PkPatterns.EMPTY;
+        int pkFloorPlayer = PkPlayerStates.pkFloor(pkPlayerStates(), currentPlayerId());
+        int pkPatternPlayer = PkPlayerStates.pkPatterns(pkPlayerStates(), currentPlayerId());
         for (int i = 0; i < pkTileSourceColorCount; i++){
             pkTileSourcePlayerMove = PkTileSet.remove(pkTileSourcePlayerMove, playerMoveColor);
         }
+        pkTileSources[playerMoveSource.index()] = pkTileSourcePlayerMove;
 
         if (playerMoveSource instanceof TileSource.Factory && pkTileSourcePlayerMove != PkTileSet.EMPTY) {
             pkTileSources[0] = PkTileSet.union(pkTileSources().get(0), pkTileSourcePlayerMove);
+            pkTileSources[playerMoveSource.index()] = PkTileSet.EMPTY;
         }
+
 
         else if (playerMoveSource instanceof TileSource.CenterArea &&
                 PkTileSet.countOf(pkTileSources().get(0), TileKind.FIRST_PLAYER_MARKER) == 1) {
+            pkTileSources[0] = PkTileSet.remove(pkTileSources().get(0), TileKind.FIRST_PLAYER_MARKER);
             pkFloorPlayer = PkFloor.withAddedTiles(pkFloorPlayer, PkTileSet.of(1, TileKind.FIRST_PLAYER_MARKER));
             PkPlayerStates.setPkFloor(pkPlayerStates, currentPlayerId(), pkFloorPlayer);
 
         }
 
 
-        else if (playerMoveDestination instanceof TileDestination.Pattern line) {
+        if (playerMoveDestination instanceof TileDestination.Pattern line) {
             int remainingTilesPkPattern = (line.capacity() - PkPatterns.size(PkPlayerStates.pkPatterns(pkPlayerStates(), currentPlayerId()), line));
             if (PkPatterns.canContain(PkPlayerStates.pkPatterns(pkPlayerStates(), currentPlayerId()),line, playerMoveColor)
                     && (remainingTilesPkPattern < pkTileSourceColorCount)) {
@@ -165,9 +177,66 @@ public final class MutableGameState implements ReadOnlyGameState{
             PkPlayerStates.setPkFloor(pkPlayerStates, currentPlayerId(), pkFloorPlayer);
         }
 
-        if (currentPlayerId().ordinal() + 1 < playerIds().size()) {
+        pkUniqueTileSourcesUpdate();
+
+
+        /*if (currentPlayerId().ordinal() + 1 < playerIds().size()) {
             currentPlayerId = playerIds().get(currentPlayerId().ordinal() + 1);
         }
+
+         */
+        currentPlayerId = playerIds().get((currentPlayerId().ordinal() + 1) % playerIds().size());
     }
+
+    public void endRound() {
+
+        int pkPatternsPlayer = PkPlayerStates.pkPatterns(pkPlayerStates(), currentPlayerId());
+        int pkWallPlayer = PkPlayerStates.pkWall(pkPlayerStates(), currentPlayerId());
+        int pkFloorPlayer = PkPlayerStates.pkFloor(pkPlayerStates(), currentPlayerId());
+        int pointsPlayer = PkPlayerStates.points(pkPlayerStates(), currentPlayerId());
+        for (TileDestination.Pattern line: TileDestination.Pattern.ALL) {
+            TileKind.Colored pkPatternColorLine = PkPatterns.color(pkPatternsPlayer, line);
+            if (PkPatterns.isFull(pkPatternsPlayer, line)){
+                pkWallPlayer = PkWall.withTileAt(pkWallPlayer, line, pkPatternColorLine);
+                PkPlayerStates.setPkWall(pkPlayerStates, currentPlayerId(), pkWallPlayer);
+                pkPatternsPlayer = PkPatterns.withEmptyLine(pkPatternsPlayer, line);
+                PkPlayerStates.setPkPatterns(pkPlayerStates, currentPlayerId(), pkPatternsPlayer);
+                int hGroupSizeWallPlayer = PkWall.hGroupSize(pkWallPlayer, line, pkPatternColorLine);
+                int vGroupSizeWallPlayer = PkWall.vGroupSize(pkWallPlayer, line, pkPatternColorLine);
+                int wallTilePointsPlayer = Points.newWallTilePoints(hGroupSizeWallPlayer,vGroupSizeWallPlayer);
+                pointsObserver.newWallTile(currentPlayerId(), line, pkPatternColorLine, wallTilePointsPlayer);
+                PkPlayerStates.addPoints(pkPlayerStates, currentPlayerId(), wallTilePointsPlayer);
+            }
+        }
+
+        if (PkFloor.size(pkFloorPlayer) != 0) {
+            int floorPenaltyPlayer = Points.totalFloorPenalty(PkFloor.size(pkFloorPlayer));
+            if (floorPenaltyPlayer <= pointsPlayer) {
+                pointsObserver.floor(currentPlayerId(), floorPenaltyPlayer);
+                PkPlayerStates.addPoints(pkPlayerStates, currentPlayerId(), - (floorPenaltyPlayer));
+
+            }
+            else {
+                pointsObserver.floor(currentPlayerId(), pointsPlayer);
+                PkPlayerStates.addPoints(pkPlayerStates, currentPlayerId(), - (pointsPlayer));
+            }
+
+            if (PkFloor.containsFirstPlayerMarker(pkFloorPlayer)) {
+                pkTileSources[0] = PkTileSet.add(pkTileSources[0], TileKind.FIRST_PLAYER_MARKER);
+                pkFloorPlayer = PkFloor.EMPTY;
+                PkPlayerStates.setPkFloor(pkPlayerStates, currentPlayerId(), pkFloorPlayer);
+                currentPlayerId = currentPlayerId(); // Nécessaire ???
+            }
+            else if (PkTileSet.countOf(pkTileSources[0], TileKind.FIRST_PLAYER_MARKER) == 1){
+                currentPlayerId = currentPlayerId(); // Nécessaire ???
+            }
+        }
+    }
+
+    public void endGame() {
+        
+    }
+
 }
+
 
