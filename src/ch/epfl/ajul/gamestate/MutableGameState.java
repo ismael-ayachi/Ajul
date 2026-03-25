@@ -190,50 +190,77 @@ public final class MutableGameState implements ReadOnlyGameState{
 
     public void endRound() {
 
-        int pkPatternsPlayer = PkPlayerStates.pkPatterns(pkPlayerStates(), currentPlayerId());
-        int pkWallPlayer = PkPlayerStates.pkWall(pkPlayerStates(), currentPlayerId());
-        int pkFloorPlayer = PkPlayerStates.pkFloor(pkPlayerStates(), currentPlayerId());
-        int pointsPlayer = PkPlayerStates.points(pkPlayerStates(), currentPlayerId());
-        for (TileDestination.Pattern line: TileDestination.Pattern.ALL) {
-            TileKind.Colored pkPatternColorLine = PkPatterns.color(pkPatternsPlayer, line);
-            if (PkPatterns.isFull(pkPatternsPlayer, line)){
-                pkWallPlayer = PkWall.withTileAt(pkWallPlayer, line, pkPatternColorLine);
-                PkPlayerStates.setPkWall(pkPlayerStates, currentPlayerId(), pkWallPlayer);
-                pkPatternsPlayer = PkPatterns.withEmptyLine(pkPatternsPlayer, line);
-                PkPlayerStates.setPkPatterns(pkPlayerStates, currentPlayerId(), pkPatternsPlayer);
-                int hGroupSizeWallPlayer = PkWall.hGroupSize(pkWallPlayer, line, pkPatternColorLine);
-                int vGroupSizeWallPlayer = PkWall.vGroupSize(pkWallPlayer, line, pkPatternColorLine);
-                int wallTilePointsPlayer = Points.newWallTilePoints(hGroupSizeWallPlayer,vGroupSizeWallPlayer);
-                pointsObserver.newWallTile(currentPlayerId(), line, pkPatternColorLine, wallTilePointsPlayer);
-                PkPlayerStates.addPoints(pkPlayerStates, currentPlayerId(), wallTilePointsPlayer);
+        for (PlayerId playerId : game().playerIds()){
+            int pkPatternsPlayer = PkPlayerStates.pkPatterns(pkPlayerStates(), playerId);
+            int pkWallPlayer = PkPlayerStates.pkWall(pkPlayerStates(), playerId);
+            int pkFloorPlayer = PkPlayerStates.pkFloor(pkPlayerStates(), playerId);
+            int pointsPlayer = PkPlayerStates.points(pkPlayerStates(), playerId);
+            for (TileDestination.Pattern line: TileDestination.Pattern.ALL) {
+                TileKind.Colored pkPatternColorLine = PkPatterns.color(pkPatternsPlayer, line);
+                if (PkPatterns.isFull(pkPatternsPlayer, line)){
+                    pkWallPlayer = PkWall.withTileAt(pkWallPlayer, line, pkPatternColorLine);
+                    PkPlayerStates.setPkWall(pkPlayerStates, playerId, pkWallPlayer);
+                    pkPatternsPlayer = PkPatterns.withEmptyLine(pkPatternsPlayer, line);
+                    PkPlayerStates.setPkPatterns(pkPlayerStates, playerId, pkPatternsPlayer);
+                    int hGroupSizeWallPlayer = PkWall.hGroupSize(pkWallPlayer, line, pkPatternColorLine);
+                    int vGroupSizeWallPlayer = PkWall.vGroupSize(pkWallPlayer, line, pkPatternColorLine);
+                    int wallTilePointsPlayer = Points.newWallTilePoints(hGroupSizeWallPlayer,vGroupSizeWallPlayer);
+                    pointsObserver.newWallTile(playerId, line, pkPatternColorLine, wallTilePointsPlayer);
+                    PkPlayerStates.addPoints(pkPlayerStates, playerId, wallTilePointsPlayer);
+                }
+            }
+
+            if (PkFloor.size(pkFloorPlayer) != 0) {
+                int floorPenaltyPlayer = Points.totalFloorPenalty(PkFloor.size(pkFloorPlayer));
+                if (floorPenaltyPlayer <= pointsPlayer) {
+                    pointsObserver.floor(playerId, floorPenaltyPlayer);
+                    PkPlayerStates.addPoints(pkPlayerStates, playerId, - (floorPenaltyPlayer));
+
+                }
+                else {
+                    pointsObserver.floor(playerId, pointsPlayer);
+                    PkPlayerStates.addPoints(pkPlayerStates, playerId, - (pointsPlayer));
+                }
+
+                if (PkFloor.containsFirstPlayerMarker(pkFloorPlayer)) {
+                    pkTileSources[0] = PkTileSet.add(pkTileSources[0], TileKind.FIRST_PLAYER_MARKER);
+                    pkFloorPlayer = PkFloor.EMPTY;
+                    PkPlayerStates.setPkFloor(pkPlayerStates, playerId, pkFloorPlayer);
+                    currentPlayerId = playerId; // À vérifier
+                }
+                else if (PkTileSet.countOf(pkTileSources[0], TileKind.FIRST_PLAYER_MARKER) == 1){
+                    currentPlayerId = currentPlayerId(); // À vérifier
+                }
             }
         }
 
-        if (PkFloor.size(pkFloorPlayer) != 0) {
-            int floorPenaltyPlayer = Points.totalFloorPenalty(PkFloor.size(pkFloorPlayer));
-            if (floorPenaltyPlayer <= pointsPlayer) {
-                pointsObserver.floor(currentPlayerId(), floorPenaltyPlayer);
-                PkPlayerStates.addPoints(pkPlayerStates, currentPlayerId(), - (floorPenaltyPlayer));
-
-            }
-            else {
-                pointsObserver.floor(currentPlayerId(), pointsPlayer);
-                PkPlayerStates.addPoints(pkPlayerStates, currentPlayerId(), - (pointsPlayer));
-            }
-
-            if (PkFloor.containsFirstPlayerMarker(pkFloorPlayer)) {
-                pkTileSources[0] = PkTileSet.add(pkTileSources[0], TileKind.FIRST_PLAYER_MARKER);
-                pkFloorPlayer = PkFloor.EMPTY;
-                PkPlayerStates.setPkFloor(pkPlayerStates, currentPlayerId(), pkFloorPlayer);
-                currentPlayerId = currentPlayerId(); // Nécessaire ???
-            }
-            else if (PkTileSet.countOf(pkTileSources[0], TileKind.FIRST_PLAYER_MARKER) == 1){
-                currentPlayerId = currentPlayerId(); // Nécessaire ???
-            }
-        }
     }
 
     public void endGame() {
+        for (PlayerId playerId : game().playerIds()) {
+            int pkWallPlayer = PkPlayerStates.pkWall(pkPlayerStates(), playerId);
+            for (TileDestination.Pattern line : TileDestination.Pattern.ALL){
+                if (PkWall.isRowFull(pkWallPlayer, line)){
+                    pointsObserver.fullRow(playerId, line, Points.FULL_ROW_BONUS_POINTS);
+                    PkPlayerStates.addPoints(pkPlayerStates, playerId, Points.FULL_ROW_BONUS_POINTS);
+                }
+            }
+
+            for (TileKind.Colored colored : TileKind.Colored.ALL){  // À optimiser ?
+                if (PkWall.isColumnFull(pkWallPlayer, colored.index())) {
+                    pointsObserver.fullColumn(playerId, colored.index(),
+                            Points.FULL_COLUMN_BONUS_POINTS);
+                    PkPlayerStates.addPoints(pkPlayerStates, playerId, Points.FULL_COLUMN_BONUS_POINTS);
+                }
+                if (PkWall.isColorFull(pkWallPlayer, colored)){
+                    pointsObserver.fullColor(playerId, colored, Points.FULL_COLOR_BONUS_POINTS);
+                    PkPlayerStates.addPoints(pkPlayerStates, playerId, Points.FULL_COLOR_BONUS_POINTS);
+                }
+
+            }
+
+
+        }
         
     }
 
