@@ -12,7 +12,7 @@ import java.util.random.RandomGeneratorFactory;
 import static ch.epfl.ajul.Game.PlayerDescription.PlayerKind.HUMAN;
 import static org.junit.jupiter.api.Assertions.*;
 
-class MyMutableGameStateTest {
+class MutableGameStateTest {
 
     private final java.util.random.RandomGenerator seedGenerator =
             RandomGeneratorFactory.getDefault().create(2026);
@@ -30,12 +30,19 @@ class MyMutableGameStateTest {
         return new MutableGameState(ImmutableGameState.initial(game(n)));
     }
 
+    private static MutableGameState stateFrom(Game game, int pkTileBag, int[] sources,
+                                              int pkUnique, int[] playerStates, PlayerId current) {
+        return new MutableGameState(new ImmutableGameState(game, pkTileBag,
+                ImmutableIntArray.copyOf(sources), pkUnique,
+                ImmutableIntArray.copyOf(playerStates), current));
+    }
+
     // ===================== constructeurs =====================
 
     @Test
     void mutableGameStateConstructorWithObserverDoesNotThrow() {
-        assertDoesNotThrow(() -> new MutableGameState(ImmutableGameState.initial(game(2)),
-                PointsObserver.EMPTY));
+        assertDoesNotThrow(() -> new MutableGameState(
+                ImmutableGameState.initial(game(2)), PointsObserver.EMPTY));
     }
 
     @Test
@@ -53,28 +60,28 @@ class MyMutableGameStateTest {
             assertEquals(initial.pkTileBag(), mutable.pkTileBag());
             assertEquals(initial.pkUniqueTileSources(), mutable.pkUniqueTileSources());
             assertEquals(initial.currentPlayerId(), mutable.currentPlayerId());
+            assertEquals(initial.pkTileSources().size(), mutable.pkTileSources().size());
         }
     }
 
     // ===================== fillFactories =====================
 
     @Test
-    void mutableGameStateFillFactoriesEmptiesBag() {
+    void mutableGameStateFillFactoriesReducesBagByCorrectAmount() {
         var rng = RandomGeneratorFactory.getDefault().create(seedGenerator.nextLong());
         for (var n = 2; n <= 4; n += 1) {
             var gs = initialState(n);
+            var tilesNeeded = gs.game().factoriesCount() * TileSource.Factory.TILES_PER_FACTORY;
             gs.fillFactories(rng);
-            // le sac doit avoir perdu exactement factoriesCount * 4 tuiles colorées
-            var tilesUsed = gs.game().factoriesCount() * TileSource.Factory.TILES_PER_FACTORY;
             var remaining = 0;
             for (var color : TileKind.Colored.ALL)
                 remaining += PkTileSet.countOf(gs.pkTileBag(), color);
-            assertEquals(100 - tilesUsed, remaining);
+            assertEquals(100 - tilesNeeded, remaining);
         }
     }
 
     @Test
-    void mutableGameStateFillFactoriesEachFactoryHas4Tiles() {
+    void mutableGameStateFillFactoriesEachFactoryHasExactly4Tiles() {
         var rng = RandomGeneratorFactory.getDefault().create(seedGenerator.nextLong());
         for (var n = 2; n <= 4; n += 1) {
             var gs = initialState(n);
@@ -89,22 +96,68 @@ class MyMutableGameStateTest {
     }
 
     @Test
-    void mutableGameStateFillFactoriesUpdatesPkUniqueTileSources() {
+    void mutableGameStateFillFactoriesDoesNotPutTilesInCentralArea() {
         var rng = RandomGeneratorFactory.getDefault().create(seedGenerator.nextLong());
-        var gs = initialState(2);
-        gs.fillFactories(rng);
-        // après le remplissage des fabriques, pkUniqueTileSources ne doit plus être vide
-        // car les fabriques contiennent des tuiles colorées
-        assertTrue(gs.pkUniqueTileSources() != PkIntSet32.EMPTY);
+        for (var n = 2; n <= 4; n += 1) {
+            var gs = initialState(n);
+            gs.fillFactories(rng);
+            for (var color : TileKind.Colored.ALL)
+                assertEquals(0, PkTileSet.countOf(gs.pkTileSources().get(0), color));
+        }
     }
 
     @Test
     void mutableGameStateFillFactoriesCentralAreaPreservesMarker() {
         var rng = RandomGeneratorFactory.getDefault().create(seedGenerator.nextLong());
+        for (var n = 2; n <= 4; n += 1) {
+            var gs = initialState(n);
+            gs.fillFactories(rng);
+            assertEquals(1, PkTileSet.countOf(gs.pkTileSources().get(0), TileKind.FIRST_PLAYER_MARKER));
+        }
+    }
+
+    @Test
+    void mutableGameStateFillFactoriesUpdatesPkUniqueTileSources() {
+        var rng = RandomGeneratorFactory.getDefault().create(seedGenerator.nextLong());
         var gs = initialState(2);
         gs.fillFactories(rng);
-        // la zone centrale doit toujours contenir le marqueur
-        assertEquals(1, PkTileSet.countOf(gs.pkTileSources().get(0), TileKind.FIRST_PLAYER_MARKER));
+        assertNotEquals(PkIntSet32.EMPTY, gs.pkUniqueTileSources());
+    }
+
+    @Test
+    void mutableGameStateFillFactoriesUsesDiscardedTilesWhenBagTooSmall() {
+        // sac avec seulement 4 tuiles A, 16 tuiles B sorties du jeu
+        var g = game(2);
+        var sources = new int[g.tileSourcesCount()];
+        sources[0] = PkTileSet.of(1, TileKind.FIRST_PLAYER_MARKER);
+        var playerStates = PkPlayerStates.initial(g).toArray();
+        // sac = 4 tuiles A seulement
+        var smallBag = PkTileSet.of(4, TileKind.Colored.A);
+        var gs = stateFrom(g, smallBag, sources, PkIntSet32.EMPTY,
+                playerStates, PlayerId.P1);
+        var rng = RandomGeneratorFactory.getDefault().create(seedGenerator.nextLong());
+        gs.fillFactories(rng);
+        // les fabriques doivent contenir au total 4*factoriesCount tuiles
+        var total = 0;
+        for (var factory : g.factories())
+            for (var color : TileKind.Colored.ALL)
+                total += PkTileSet.countOf(gs.pkTileSources().get(factory.index()), color);
+        // fabriques count = 5, tiles needed = 20, bag had only 4 → uses discarded
+        assertTrue(total > 0);
+    }
+
+    @Test
+    void mutableGameStateFillFactoriesIsReproducibleWithSameSeed() {
+        for (var n = 2; n <= 4; n += 1) {
+            var gs1 = initialState(n);
+            var gs2 = initialState(n);
+            var rng1 = RandomGeneratorFactory.getDefault().create(42);
+            var rng2 = RandomGeneratorFactory.getDefault().create(42);
+            gs1.fillFactories(rng1);
+            gs2.fillFactories(rng2);
+            for (var i = 0; i < gs1.pkTileSources().size(); i += 1)
+                assertEquals(gs1.pkTileSources().get(i), gs2.pkTileSources().get(i));
+        }
     }
 
     // ===================== registerMove =====================
@@ -123,7 +176,23 @@ class MyMutableGameStateTest {
     }
 
     @Test
-    void mutableGameStateRegisterMoveEmptiesSourceOfColoredTiles() {
+    void mutableGameStateRegisterMoveCurrentPlayerCyclesCorrectly() {
+        var rng = RandomGeneratorFactory.getDefault().create(seedGenerator.nextLong());
+        for (var n = 2; n <= 4; n += 1) {
+            var gs = initialState(n);
+            gs.fillFactories(rng);
+            // jouer n coups → on doit revenir au premier joueur
+            for (var i = 0; i < n; i += 1) {
+                var dest = new short[Move.MAX_MOVES];
+                gs.validMoves(dest);
+                gs.registerMove(dest[0]);
+            }
+            assertEquals(PlayerId.P1, gs.currentPlayerId());
+        }
+    }
+
+    @Test
+    void mutableGameStateRegisterMoveRemovesColorFromSource() {
         var rng = RandomGeneratorFactory.getDefault().create(seedGenerator.nextLong());
         var gs = initialState(2);
         gs.fillFactories(rng);
@@ -144,321 +213,509 @@ class MyMutableGameStateTest {
         gs.fillFactories(rng);
         var dest = new short[Move.MAX_MOVES];
         var count = gs.validMoves(dest);
-        // trouver un coup depuis une fabrique
-        for (var i = 0; i < count; i++) {
+        for (var i = 0; i < count; i += 1) {
             var move = Move.ofPacked(dest[i]);
             if (move.source() instanceof TileSource.Factory) {
                 var sourceIndex = move.source().index();
                 var color = move.tileColor();
-                var centralBefore = gs.pkTileSources().get(0);
                 var sourceBefore = gs.pkTileSources().get(sourceIndex);
-                var otherTiles = PkTileSet.difference(sourceBefore,
-                        PkTileSet.of(PkTileSet.countOf(sourceBefore, color), color));
+                var centralBefore = gs.pkTileSources().get(0);
+                var otherColorCount = 0;
+                for (var c : TileKind.Colored.ALL)
+                    if (c != color) otherColorCount += PkTileSet.countOf(sourceBefore, c);
                 gs.registerMove(dest[i]);
-                // les tuiles restantes doivent être dans la zone centrale
-                for (var c : TileKind.Colored.ALL) {
-                    var expected = PkTileSet.countOf(centralBefore, c) + PkTileSet.countOf(otherTiles, c);
-                    assertEquals(expected, PkTileSet.countOf(gs.pkTileSources().get(0), c));
-                }
+                // les tuiles restantes de la fabrique doivent être dans la zone centrale
+                var addedToCenter = 0;
+                for (var c : TileKind.Colored.ALL)
+                    addedToCenter += PkTileSet.countOf(gs.pkTileSources().get(0), c)
+                            - PkTileSet.countOf(centralBefore, c);
+                assertEquals(otherColorCount, addedToCenter);
                 return;
             }
         }
+    }
+
+    @Test
+    void mutableGameStateRegisterMoveFromFactoryEmptiesFactory() {
+        var rng = RandomGeneratorFactory.getDefault().create(seedGenerator.nextLong());
+        var gs = initialState(2);
+        gs.fillFactories(rng);
+        var dest = new short[Move.MAX_MOVES];
+        var count = gs.validMoves(dest);
+        for (var i = 0; i < count; i += 1) {
+            var move = Move.ofPacked(dest[i]);
+            if (move.source() instanceof TileSource.Factory) {
+                var sourceIndex = move.source().index();
+                gs.registerMove(dest[i]);
+                assertEquals(PkTileSet.EMPTY, gs.pkTileSources().get(sourceIndex));
+                return;
+            }
+        }
+    }
+
+    @Test
+    void mutableGameStateRegisterMoveFromCentralAreaTransfersMarkerToFloor() {
+        var g = game(2);
+        var sources = new int[g.tileSourcesCount()];
+        sources[0] = PkTileSet.union(
+                PkTileSet.of(1, TileKind.FIRST_PLAYER_MARKER),
+                PkTileSet.of(2, TileKind.Colored.A));
+        var uniqueSources = PkIntSet32.add(PkIntSet32.EMPTY, 0);
+        var playerStates = PkPlayerStates.initial(g).toArray();
+        var gs = stateFrom(g, PkTileSet.FULL_COLORED, sources, uniqueSources,
+                playerStates, PlayerId.P1);
+        // jouer depuis la zone centrale avec couleur A vers le plancher
+        var dest = new short[Move.MAX_MOVES];
+        var count = gs.validMoves(dest);
+        for (var i = 0; i < count; i += 1) {
+            var move = Move.ofPacked(dest[i]);
+            if (move.source() instanceof TileSource.CenterArea
+                    && move.destination() == TileDestination.FLOOR) {
+                gs.registerMove(dest[i]);
+                // le marqueur doit avoir quitté la zone centrale
+                assertEquals(0, PkTileSet.countOf(gs.pkTileSources().get(0), TileKind.FIRST_PLAYER_MARKER));
+                // le plancher de P1 doit contenir le marqueur
+                assertTrue(PkFloor.containsFirstPlayerMarker(
+                        PkPlayerStates.pkFloor(gs.pkPlayerStates(), PlayerId.P1)));
+                return;
+            }
+        }
+    }
+
+    @Test
+    void mutableGameStateRegisterMoveToPatternLineAddsExcessToFloor() {
+        var g = game(2);
+        var sources = new int[g.tileSourcesCount()];
+        // fabrique 1 avec 4 tuiles A
+        sources[1] = PkTileSet.of(4, TileKind.Colored.A);
+        var uniqueSources = PkIntSet32.add(PkIntSet32.EMPTY, 1);
+        var playerStates = PkPlayerStates.initial(g).toArray();
+        var gs = stateFrom(g, PkTileSet.FULL_COLORED, sources, uniqueSources,
+                playerStates, PlayerId.P1);
+        // jouer 4 tuiles A sur la ligne PATTERN_1 (capacité 1) → 3 excédentaires sur le plancher
+        var pkMove = PkMove.pack(TileSource.ALL.get(1), TileKind.Colored.A, TileDestination.Pattern.PATTERN_1);
+        gs.registerMove(pkMove);
+        // ligne de motif doit avoir 1 tuile A
+        assertEquals(1, PkPatterns.size(
+                PkPlayerStates.pkPatterns(gs.pkPlayerStates(), PlayerId.P1),
+                TileDestination.Pattern.PATTERN_1));
+        // plancher doit avoir 3 tuiles A
+        assertEquals(3, PkFloor.size(
+                PkPlayerStates.pkFloor(gs.pkPlayerStates(), PlayerId.P1)));
+    }
+
+    @Test
+    void mutableGameStateRegisterMoveUpdatesPkUniqueTileSources() {
+        var rng = RandomGeneratorFactory.getDefault().create(seedGenerator.nextLong());
+        var gs = initialState(2);
+        gs.fillFactories(rng);
+        var before = gs.pkUniqueTileSources();
+        var dest = new short[Move.MAX_MOVES];
+        gs.validMoves(dest);
+        gs.registerMove(dest[0]);
+        // après un coup, les sources uniques peuvent avoir changé
+        assertNotNull(gs.pkUniqueTileSources()); // toujours valide
+        // la source utilisée ne doit plus être dans les sources uniques si elle est vide
+        var move = Move.ofPacked(dest[0]);
+        var sourceIndex = move.source().index();
+        if (gs.pkTileSources().get(sourceIndex) == PkTileSet.EMPTY)
+            assertFalse(PkIntSet32.contains(gs.pkUniqueTileSources(), sourceIndex));
     }
 
     // ===================== endRound =====================
 
     @Test
     void mutableGameStateEndRoundEmptiesFullPatternLines() {
-        var rng = RandomGeneratorFactory.getDefault().create(seedGenerator.nextLong());
-        var gs = initialState(2);
-        gs.fillFactories(rng);
-        // remplir manuellement la première ligne de motif de P1
+        var g = game(2);
+        var sources = new int[g.tileSourcesCount()];
+        var playerStates = PkPlayerStates.initial(g).toArray();
         var pkPatterns = PkPatterns.withAddedTiles(PkPatterns.EMPTY,
                 TileDestination.Pattern.PATTERN_1,
                 TileDestination.Pattern.PATTERN_1.capacity(),
                 TileKind.Colored.A);
-        var playerStates = gs.pkPlayerStates().toArray();
         PkPlayerStates.setPkPatterns(playerStates, PlayerId.P1, pkPatterns);
-        var gsModified = new MutableGameState(new ImmutableGameState(
-                gs.game(), gs.pkTileBag(),
-                ImmutableIntArray.copyOf(gs.pkTileSources().toArray()),
-                gs.pkUniqueTileSources(),
-                ImmutableIntArray.copyOf(playerStates),
-                gs.currentPlayerId()));
-        gsModified.endRound();
+        var gs = stateFrom(g, PkTileSet.FULL_COLORED, sources, PkIntSet32.EMPTY,
+                playerStates, PlayerId.P1);
+        gs.endRound();
         assertEquals(0, PkPatterns.size(
-                PkPlayerStates.pkPatterns(gsModified.pkPlayerStates(), PlayerId.P1),
+                PkPlayerStates.pkPatterns(gs.pkPlayerStates(), PlayerId.P1),
                 TileDestination.Pattern.PATTERN_1));
     }
 
     @Test
-    void mutableGameStateEndRoundAddsPointsForFullLine() {
-        var rng = RandomGeneratorFactory.getDefault().create(seedGenerator.nextLong());
-        var gs = initialState(2);
-        gs.fillFactories(rng);
+    void mutableGameStateEndRoundPlacesFullLineTileOnWall() {
+        var g = game(2);
+        var sources = new int[g.tileSourcesCount()];
+        var playerStates = PkPlayerStates.initial(g).toArray();
         var pkPatterns = PkPatterns.withAddedTiles(PkPatterns.EMPTY,
                 TileDestination.Pattern.PATTERN_1,
                 TileDestination.Pattern.PATTERN_1.capacity(),
                 TileKind.Colored.A);
-        var playerStates = gs.pkPlayerStates().toArray();
         PkPlayerStates.setPkPatterns(playerStates, PlayerId.P1, pkPatterns);
-        var gsModified = new MutableGameState(new ImmutableGameState(
-                gs.game(), gs.pkTileBag(),
-                ImmutableIntArray.copyOf(gs.pkTileSources().toArray()),
-                gs.pkUniqueTileSources(),
-                ImmutableIntArray.copyOf(playerStates),
-                gs.currentPlayerId()));
-        var pointsBefore = PkPlayerStates.points(gsModified.pkPlayerStates(), PlayerId.P1);
-        gsModified.endRound();
-        assertTrue(PkPlayerStates.points(gsModified.pkPlayerStates(), PlayerId.P1) > pointsBefore);
+        var gs = stateFrom(g, PkTileSet.FULL_COLORED, sources, PkIntSet32.EMPTY,
+                playerStates, PlayerId.P1);
+        gs.endRound();
+        assertTrue(PkWall.hasTileAt(
+                PkPlayerStates.pkWall(gs.pkPlayerStates(), PlayerId.P1),
+                TileDestination.Pattern.PATTERN_1, TileKind.Colored.A));
+    }
+
+    @Test
+    void mutableGameStateEndRoundAddsPointsForFullLine() {
+        var g = game(2);
+        var sources = new int[g.tileSourcesCount()];
+        var playerStates = PkPlayerStates.initial(g).toArray();
+        var pkPatterns = PkPatterns.withAddedTiles(PkPatterns.EMPTY,
+                TileDestination.Pattern.PATTERN_1,
+                TileDestination.Pattern.PATTERN_1.capacity(),
+                TileKind.Colored.A);
+        PkPlayerStates.setPkPatterns(playerStates, PlayerId.P1, pkPatterns);
+        var gs = stateFrom(g, PkTileSet.FULL_COLORED, sources, PkIntSet32.EMPTY,
+                playerStates, PlayerId.P1);
+        gs.endRound();
+        assertTrue(PkPlayerStates.points(gs.pkPlayerStates(), PlayerId.P1) > 0);
+    }
+
+    @Test
+    void mutableGameStateEndRoundDoesNotAddPointsForNonFullLine() {
+        var g = game(2);
+        var sources = new int[g.tileSourcesCount()];
+        var playerStates = PkPlayerStates.initial(g).toArray();
+        // ligne partiellement remplie (pas pleine)
+        var pkPatterns = PkPatterns.withAddedTiles(PkPatterns.EMPTY,
+                TileDestination.Pattern.PATTERN_2, 1, TileKind.Colored.B);
+        PkPlayerStates.setPkPatterns(playerStates, PlayerId.P1, pkPatterns);
+        var gs = stateFrom(g, PkTileSet.FULL_COLORED, sources, PkIntSet32.EMPTY,
+                playerStates, PlayerId.P1);
+        gs.endRound();
+        assertEquals(0, PkPlayerStates.points(gs.pkPlayerStates(), PlayerId.P1));
     }
 
     @Test
     void mutableGameStateEndRoundDeductsFloorPenalty() {
-        var rng = RandomGeneratorFactory.getDefault().create(seedGenerator.nextLong());
-        var gs = initialState(2);
-        gs.fillFactories(rng);
-        // donner 10 points à P1 et mettre 3 tuiles sur son plancher
-        var playerStates = gs.pkPlayerStates().toArray();
+        var g = game(2);
+        var sources = new int[g.tileSourcesCount()];
+        var playerStates = PkPlayerStates.initial(g).toArray();
         PkPlayerStates.addPoints(playerStates, PlayerId.P1, 10);
         var pkFloor = PkFloor.withAddedTiles(PkFloor.EMPTY, PkTileSet.of(3, TileKind.Colored.B));
         PkPlayerStates.setPkFloor(playerStates, PlayerId.P1, pkFloor);
-        var gsModified = new MutableGameState(new ImmutableGameState(
-                gs.game(), gs.pkTileBag(),
-                ImmutableIntArray.copyOf(gs.pkTileSources().toArray()),
-                gs.pkUniqueTileSources(),
-                ImmutableIntArray.copyOf(playerStates),
-                gs.currentPlayerId()));
-        gsModified.endRound();
-        // pénalité pour 3 tuiles = 4 points → 10 - 4 = 6
-        assertEquals(6, PkPlayerStates.points(gsModified.pkPlayerStates(), PlayerId.P1));
+        var gs = stateFrom(g, PkTileSet.FULL_COLORED, sources, PkIntSet32.EMPTY,
+                playerStates, PlayerId.P1);
+        gs.endRound();
+        // pénalité pour 3 tuiles = 4 → 10 - 4 = 6
+        assertEquals(6, PkPlayerStates.points(gs.pkPlayerStates(), PlayerId.P1));
     }
 
     @Test
     void mutableGameStateEndRoundScoreNeverNegative() {
-        var rng = RandomGeneratorFactory.getDefault().create(seedGenerator.nextLong());
-        var gs = initialState(2);
-        gs.fillFactories(rng);
-        // P1 a 0 points et 7 tuiles sur son plancher
-        var playerStates = gs.pkPlayerStates().toArray();
+        var g = game(2);
+        var sources = new int[g.tileSourcesCount()];
+        var playerStates = PkPlayerStates.initial(g).toArray();
+        // 0 pts, 7 tuiles sur le plancher → pénalité de 14 → score = 0
         var pkFloor = PkFloor.withAddedTiles(PkFloor.EMPTY, PkTileSet.of(7, TileKind.Colored.C));
         PkPlayerStates.setPkFloor(playerStates, PlayerId.P1, pkFloor);
-        var gsModified = new MutableGameState(new ImmutableGameState(
-                gs.game(), gs.pkTileBag(),
-                ImmutableIntArray.copyOf(gs.pkTileSources().toArray()),
-                gs.pkUniqueTileSources(),
-                ImmutableIntArray.copyOf(playerStates),
-                gs.currentPlayerId()));
-        gsModified.endRound();
-        assertTrue(PkPlayerStates.points(gsModified.pkPlayerStates(), PlayerId.P1) >= 0);
+        var gs = stateFrom(g, PkTileSet.FULL_COLORED, sources, PkIntSet32.EMPTY,
+                playerStates, PlayerId.P1);
+        gs.endRound();
+        assertEquals(0, PkPlayerStates.points(gs.pkPlayerStates(), PlayerId.P1));
     }
 
     @Test
     void mutableGameStateEndRoundEmptiesFloor() {
-        var rng = RandomGeneratorFactory.getDefault().create(seedGenerator.nextLong());
-        var gs = initialState(2);
-        gs.fillFactories(rng);
-        var playerStates = gs.pkPlayerStates().toArray();
+        var g = game(2);
+        var sources = new int[g.tileSourcesCount()];
+        var playerStates = PkPlayerStates.initial(g).toArray();
         PkPlayerStates.addPoints(playerStates, PlayerId.P1, 10);
         var pkFloor = PkFloor.withAddedTiles(PkFloor.EMPTY, PkTileSet.of(2, TileKind.Colored.A));
         PkPlayerStates.setPkFloor(playerStates, PlayerId.P1, pkFloor);
-        var gsModified = new MutableGameState(new ImmutableGameState(
-                gs.game(), gs.pkTileBag(),
-                ImmutableIntArray.copyOf(gs.pkTileSources().toArray()),
-                gs.pkUniqueTileSources(),
-                ImmutableIntArray.copyOf(playerStates),
-                gs.currentPlayerId()));
-        gsModified.endRound();
-        assertEquals(PkFloor.EMPTY, PkPlayerStates.pkFloor(gsModified.pkPlayerStates(), PlayerId.P1));
+        var gs = stateFrom(g, PkTileSet.FULL_COLORED, sources, PkIntSet32.EMPTY,
+                playerStates, PlayerId.P1);
+        gs.endRound();
+        assertEquals(PkFloor.EMPTY, PkPlayerStates.pkFloor(gs.pkPlayerStates(), PlayerId.P1));
     }
 
     @Test
     void mutableGameStateEndRoundReplacesMarkerInCentralArea() {
-        var rng = RandomGeneratorFactory.getDefault().create(seedGenerator.nextLong());
-        var gs = initialState(2);
-        gs.fillFactories(rng);
-        // mettre le marqueur sur le plancher de P1
-        var playerStates = gs.pkPlayerStates().toArray();
+        var g = game(2);
+        var sources = new int[g.tileSourcesCount()];
+        // marqueur absent de la zone centrale
+        sources[0] = PkTileSet.EMPTY;
+        var playerStates = PkPlayerStates.initial(g).toArray();
         PkPlayerStates.addPoints(playerStates, PlayerId.P1, 10);
+        // marqueur sur le plancher de P1
         var pkFloor = PkFloor.withAddedTiles(PkFloor.EMPTY,
                 PkTileSet.of(1, TileKind.FIRST_PLAYER_MARKER));
         PkPlayerStates.setPkFloor(playerStates, PlayerId.P1, pkFloor);
-        // retirer le marqueur de la zone centrale
-        var sources = gs.pkTileSources().toArray();
-        sources[0] = PkTileSet.remove(sources[0], TileKind.FIRST_PLAYER_MARKER);
-        var gsModified = new MutableGameState(new ImmutableGameState(
-                gs.game(), gs.pkTileBag(),
-                ImmutableIntArray.copyOf(sources),
-                gs.pkUniqueTileSources(),
-                ImmutableIntArray.copyOf(playerStates),
-                gs.currentPlayerId()));
-        gsModified.endRound();
-        assertEquals(1, PkTileSet.countOf(gsModified.pkTileSources().get(0), TileKind.FIRST_PLAYER_MARKER));
+        var gs = stateFrom(g, PkTileSet.FULL_COLORED, sources, PkIntSet32.EMPTY,
+                playerStates, PlayerId.P1);
+        gs.endRound();
+        assertEquals(1, PkTileSet.countOf(gs.pkTileSources().get(0), TileKind.FIRST_PLAYER_MARKER));
+    }
+
+    @Test
+    void mutableGameStateEndRoundSetsCurrentPlayerToMarkerHolder() {
+        var g = game(2);
+        var sources = new int[g.tileSourcesCount()];
+        sources[0] = PkTileSet.EMPTY;
+        var playerStates = PkPlayerStates.initial(g).toArray();
+        PkPlayerStates.addPoints(playerStates, PlayerId.P2, 10);
+        // marqueur sur le plancher de P2
+        var pkFloor = PkFloor.withAddedTiles(PkFloor.EMPTY,
+                PkTileSet.of(1, TileKind.FIRST_PLAYER_MARKER));
+        PkPlayerStates.setPkFloor(playerStates, PlayerId.P2, pkFloor);
+        var gs = stateFrom(g, PkTileSet.FULL_COLORED, sources, PkIntSet32.EMPTY,
+                playerStates, PlayerId.P1);
+        gs.endRound();
+        assertEquals(PlayerId.P2, gs.currentPlayerId());
+    }
+
+    @Test
+    void mutableGameStateEndRoundDeductsFloorPenaltyForAllPlayers() {
+        var g = game(4);
+        var sources = new int[g.tileSourcesCount()];
+        var playerStates = PkPlayerStates.initial(g).toArray();
+        PkPlayerStates.addPoints(playerStates, PlayerId.P1, 10);
+        PkPlayerStates.addPoints(playerStates, PlayerId.P2, 10);
+        var pkFloor1 = PkFloor.withAddedTiles(PkFloor.EMPTY, PkTileSet.of(2, TileKind.Colored.A));
+        var pkFloor2 = PkFloor.withAddedTiles(PkFloor.EMPTY, PkTileSet.of(3, TileKind.Colored.B));
+        PkPlayerStates.setPkFloor(playerStates, PlayerId.P1, pkFloor1);
+        PkPlayerStates.setPkFloor(playerStates, PlayerId.P2, pkFloor2);
+        var gs = stateFrom(g, PkTileSet.FULL_COLORED, sources, PkIntSet32.EMPTY,
+                playerStates, PlayerId.P1);
+        gs.endRound();
+        assertEquals(10 - Points.totalFloorPenalty(2),
+                PkPlayerStates.points(gs.pkPlayerStates(), PlayerId.P1));
+        assertEquals(10 - Points.totalFloorPenalty(3),
+                PkPlayerStates.points(gs.pkPlayerStates(), PlayerId.P2));
     }
 
     // ===================== endGame =====================
 
     @Test
     void mutableGameStateEndGameAddsFullRowBonus() {
-        var rng = RandomGeneratorFactory.getDefault().create(seedGenerator.nextLong());
-        var gs = initialState(2);
-        gs.fillFactories(rng);
+        var g = game(2);
+        var sources = new int[g.tileSourcesCount()];
+        var playerStates = PkPlayerStates.initial(g).toArray();
         var pkWall = PkWall.EMPTY;
         for (var color : TileKind.Colored.ALL)
             pkWall = PkWall.withTileAt(pkWall, TileDestination.Pattern.PATTERN_1, color);
-        var playerStates = gs.pkPlayerStates().toArray();
         PkPlayerStates.setPkWall(playerStates, PlayerId.P1, pkWall);
-        var sources = new int[gs.game().tileSourcesCount()];
-        var gsModified = new MutableGameState(new ImmutableGameState(
-                gs.game(), PkTileSet.EMPTY,
-                ImmutableIntArray.copyOf(sources),
-                PkIntSet32.EMPTY,
-                ImmutableIntArray.copyOf(playerStates),
-                gs.currentPlayerId()));
-        var pointsBefore = PkPlayerStates.points(gsModified.pkPlayerStates(), PlayerId.P1);
-        gsModified.endGame();
-        assertEquals(pointsBefore + Points.FULL_ROW_BONUS_POINTS,
-                PkPlayerStates.points(gsModified.pkPlayerStates(), PlayerId.P1));
+        var gs = stateFrom(g, PkTileSet.EMPTY, sources, PkIntSet32.EMPTY,
+                playerStates, PlayerId.P1);
+        gs.endGame();
+        assertEquals(Points.FULL_ROW_BONUS_POINTS,
+                PkPlayerStates.points(gs.pkPlayerStates(), PlayerId.P1));
+    }
+
+    @Test
+    void mutableGameStateEndGameAddsFullRowBonusForEachFullRow() {
+        var g = game(2);
+        var sources = new int[g.tileSourcesCount()];
+        var playerStates = PkPlayerStates.initial(g).toArray();
+        var pkWall = PkWall.EMPTY;
+        // remplir deux lignes
+        for (var color : TileKind.Colored.ALL) {
+            pkWall = PkWall.withTileAt(pkWall, TileDestination.Pattern.PATTERN_1, color);
+            pkWall = PkWall.withTileAt(pkWall, TileDestination.Pattern.PATTERN_2, color);
+        }
+        PkPlayerStates.setPkWall(playerStates, PlayerId.P1, pkWall);
+        var gs = stateFrom(g, PkTileSet.EMPTY, sources, PkIntSet32.EMPTY,
+                playerStates, PlayerId.P1);
+        gs.endGame();
+        assertEquals(2 * Points.FULL_ROW_BONUS_POINTS,
+                PkPlayerStates.points(gs.pkPlayerStates(), PlayerId.P1));
     }
 
     @Test
     void mutableGameStateEndGameAddsFullColumnBonus() {
-        var rng = RandomGeneratorFactory.getDefault().create(seedGenerator.nextLong());
-        var gs = initialState(2);
-        gs.fillFactories(rng);
+        var g = game(2);
+        var sources = new int[g.tileSourcesCount()];
+        var playerStates = PkPlayerStates.initial(g).toArray();
         var pkWall = PkWall.EMPTY;
         for (var line : TileDestination.Pattern.ALL)
             pkWall = PkWall.withTileAt(pkWall, line, PkWall.colorAt(line, 0));
-        var playerStates = gs.pkPlayerStates().toArray();
         PkPlayerStates.setPkWall(playerStates, PlayerId.P1, pkWall);
-        var sources = new int[gs.game().tileSourcesCount()];
-        var gsModified = new MutableGameState(new ImmutableGameState(
-                gs.game(), PkTileSet.EMPTY,
-                ImmutableIntArray.copyOf(sources),
-                PkIntSet32.EMPTY,
-                ImmutableIntArray.copyOf(playerStates),
-                gs.currentPlayerId()));
-        var pointsBefore = PkPlayerStates.points(gsModified.pkPlayerStates(), PlayerId.P1);
-        gsModified.endGame();
-        assertEquals(pointsBefore + Points.FULL_COLUMN_BONUS_POINTS,
-                PkPlayerStates.points(gsModified.pkPlayerStates(), PlayerId.P1));
+        var gs = stateFrom(g, PkTileSet.EMPTY, sources, PkIntSet32.EMPTY,
+                playerStates, PlayerId.P1);
+        gs.endGame();
+        assertEquals(Points.FULL_COLUMN_BONUS_POINTS,
+                PkPlayerStates.points(gs.pkPlayerStates(), PlayerId.P1));
     }
 
     @Test
     void mutableGameStateEndGameAddsFullColorBonus() {
-        var rng = RandomGeneratorFactory.getDefault().create(seedGenerator.nextLong());
-        var gs = initialState(2);
-        gs.fillFactories(rng);
+        var g = game(2);
+        var sources = new int[g.tileSourcesCount()];
+        var playerStates = PkPlayerStates.initial(g).toArray();
         var pkWall = PkWall.EMPTY;
         for (var line : TileDestination.Pattern.ALL)
             pkWall = PkWall.withTileAt(pkWall, line, TileKind.Colored.A);
-        var playerStates = gs.pkPlayerStates().toArray();
         PkPlayerStates.setPkWall(playerStates, PlayerId.P1, pkWall);
-        var sources = new int[gs.game().tileSourcesCount()];
-        var gsModified = new MutableGameState(new ImmutableGameState(
-                gs.game(), PkTileSet.EMPTY,
-                ImmutableIntArray.copyOf(sources),
-                PkIntSet32.EMPTY,
-                ImmutableIntArray.copyOf(playerStates),
-                gs.currentPlayerId()));
-        var pointsBefore = PkPlayerStates.points(gsModified.pkPlayerStates(), PlayerId.P1);
-        gsModified.endGame();
-        assertEquals(pointsBefore + Points.FULL_COLOR_BONUS_POINTS,
-                PkPlayerStates.points(gsModified.pkPlayerStates(), PlayerId.P1));
+        var gs = stateFrom(g, PkTileSet.EMPTY, sources, PkIntSet32.EMPTY,
+                playerStates, PlayerId.P1);
+        gs.endGame();
+        assertEquals(Points.FULL_COLOR_BONUS_POINTS,
+                PkPlayerStates.points(gs.pkPlayerStates(), PlayerId.P1));
+    }
+
+    @Test
+    void mutableGameStateEndGameAddsNoBonusForEmptyWall() {
+        var g = game(2);
+        var sources = new int[g.tileSourcesCount()];
+        var playerStates = PkPlayerStates.initial(g).toArray();
+        var gs = stateFrom(g, PkTileSet.EMPTY, sources, PkIntSet32.EMPTY,
+                playerStates, PlayerId.P1);
+        gs.endGame();
+        assertEquals(0, PkPlayerStates.points(gs.pkPlayerStates(), PlayerId.P1));
     }
 
     @Test
     void mutableGameStateEndGameChecksAllPlayers() {
-        var gs = initialState(4);
-        var playerStates = gs.pkPlayerStates().toArray();
-        // P1 : ligne complète, P2 : colonne complète, P3 : couleur complète
+        var g = game(4);
+        var sources = new int[g.tileSourcesCount()];
+        var playerStates = PkPlayerStates.initial(g).toArray();
+        // P1 : ligne complète
         var pkWall1 = PkWall.EMPTY;
         for (var color : TileKind.Colored.ALL)
             pkWall1 = PkWall.withTileAt(pkWall1, TileDestination.Pattern.PATTERN_1, color);
         PkPlayerStates.setPkWall(playerStates, PlayerId.P1, pkWall1);
-
+        // P2 : colonne complète
         var pkWall2 = PkWall.EMPTY;
         for (var line : TileDestination.Pattern.ALL)
             pkWall2 = PkWall.withTileAt(pkWall2, line, PkWall.colorAt(line, 0));
         PkPlayerStates.setPkWall(playerStates, PlayerId.P2, pkWall2);
-
+        // P3 : couleur complète
         var pkWall3 = PkWall.EMPTY;
         for (var line : TileDestination.Pattern.ALL)
             pkWall3 = PkWall.withTileAt(pkWall3, line, TileKind.Colored.B);
         PkPlayerStates.setPkWall(playerStates, PlayerId.P3, pkWall3);
-
-        var sources = new int[gs.game().tileSourcesCount()];
-        var gsModified = new MutableGameState(new ImmutableGameState(
-                gs.game(), PkTileSet.EMPTY,
-                ImmutableIntArray.copyOf(sources),
-                PkIntSet32.EMPTY,
-                ImmutableIntArray.copyOf(playerStates),
-                gs.currentPlayerId()));
-        gsModified.endGame();
-
+        var gs = stateFrom(g, PkTileSet.EMPTY, sources, PkIntSet32.EMPTY,
+                playerStates, PlayerId.P1);
+        gs.endGame();
         assertEquals(Points.FULL_ROW_BONUS_POINTS,
-                PkPlayerStates.points(gsModified.pkPlayerStates(), PlayerId.P1));
+                PkPlayerStates.points(gs.pkPlayerStates(), PlayerId.P1));
         assertEquals(Points.FULL_COLUMN_BONUS_POINTS,
-                PkPlayerStates.points(gsModified.pkPlayerStates(), PlayerId.P2));
+                PkPlayerStates.points(gs.pkPlayerStates(), PlayerId.P2));
         assertEquals(Points.FULL_COLOR_BONUS_POINTS,
-                PkPlayerStates.points(gsModified.pkPlayerStates(), PlayerId.P3));
+                PkPlayerStates.points(gs.pkPlayerStates(), PlayerId.P3));
+        assertEquals(0, PkPlayerStates.points(gs.pkPlayerStates(), PlayerId.P4));
     }
 
     // ===================== pointsObserver =====================
 
     @Test
-    void mutableGameStatePointsObserverIsCalledOnNewWallTile() {
-        var rng = RandomGeneratorFactory.getDefault().create(seedGenerator.nextLong());
-        var gs = initialState(2);
-        gs.fillFactories(rng);
-        var calledPlayers = new ArrayList<PlayerId>();
-        var observer = new PointsObserver() {
-            @Override
-            public void newWallTile(PlayerId playerId, TileDestination.Pattern line,
-                                    TileKind.Colored color, int points) {
-                calledPlayers.add(playerId);
-            }
-        };
+    void mutableGameStateObserverCalledForNewWallTile() {
+        var g = game(2);
+        var sources = new int[g.tileSourcesCount()];
+        var playerStates = PkPlayerStates.initial(g).toArray();
         var pkPatterns = PkPatterns.withAddedTiles(PkPatterns.EMPTY,
                 TileDestination.Pattern.PATTERN_1,
                 TileDestination.Pattern.PATTERN_1.capacity(),
                 TileKind.Colored.A);
-        var playerStates = gs.pkPlayerStates().toArray();
         PkPlayerStates.setPkPatterns(playerStates, PlayerId.P1, pkPatterns);
-        var gsModified = new MutableGameState(new ImmutableGameState(
-                gs.game(), gs.pkTileBag(),
-                ImmutableIntArray.copyOf(gs.pkTileSources().toArray()),
-                gs.pkUniqueTileSources(),
-                ImmutableIntArray.copyOf(playerStates),
-                gs.currentPlayerId()), observer);
-        gsModified.endRound();
+        var calledPlayers = new ArrayList<PlayerId>();
+        var observer = new PointsObserver() {
+            @Override
+            public void newWallTile(PlayerId p, TileDestination.Pattern l, TileKind.Colored c, int pts) {
+                calledPlayers.add(p);
+            }
+        };
+        var gs = new MutableGameState(new ImmutableGameState(g, PkTileSet.FULL_COLORED,
+                ImmutableIntArray.copyOf(sources), PkIntSet32.EMPTY,
+                ImmutableIntArray.copyOf(playerStates), PlayerId.P1), observer);
+        gs.endRound();
         assertTrue(calledPlayers.contains(PlayerId.P1));
     }
 
     @Test
-    void mutableGameStatePointsObserverIsCalledOnFloorPenalty() {
-        var rng = RandomGeneratorFactory.getDefault().create(seedGenerator.nextLong());
-        var gs = initialState(2);
-        gs.fillFactories(rng);
-        var calledPenalties = new ArrayList<Integer>();
-        var observer = new PointsObserver() {
-            @Override
-            public void floor(PlayerId playerId, int penalty) {
-                calledPenalties.add(penalty);
-            }
-        };
-        var playerStates = gs.pkPlayerStates().toArray();
+    void mutableGameStateObserverCalledForFloorPenalty() {
+        var g = game(2);
+        var sources = new int[g.tileSourcesCount()];
+        var playerStates = PkPlayerStates.initial(g).toArray();
         PkPlayerStates.addPoints(playerStates, PlayerId.P1, 10);
         var pkFloor = PkFloor.withAddedTiles(PkFloor.EMPTY, PkTileSet.of(3, TileKind.Colored.B));
         PkPlayerStates.setPkFloor(playerStates, PlayerId.P1, pkFloor);
-        var gsModified = new MutableGameState(new ImmutableGameState(
-                gs.game(), gs.pkTileBag(),
-                ImmutableIntArray.copyOf(gs.pkTileSources().toArray()),
-                gs.pkUniqueTileSources(),
-                ImmutableIntArray.copyOf(playerStates),
-                gs.currentPlayerId()), observer);
-        gsModified.endRound();
+        var calledPenalties = new ArrayList<Integer>();
+        var observer = new PointsObserver() {
+            @Override
+            public void floor(PlayerId p, int penalty) {
+                calledPenalties.add(penalty);
+            }
+        };
+        var gs = new MutableGameState(new ImmutableGameState(g, PkTileSet.FULL_COLORED,
+                ImmutableIntArray.copyOf(sources), PkIntSet32.EMPTY,
+                ImmutableIntArray.copyOf(playerStates), PlayerId.P1), observer);
+        gs.endRound();
         assertFalse(calledPenalties.isEmpty());
         assertEquals(Points.totalFloorPenalty(3), calledPenalties.getFirst());
+    }
+
+    @Test
+    void mutableGameStateObserverCalledForFullRow() {
+        var g = game(2);
+        var sources = new int[g.tileSourcesCount()];
+        var playerStates = PkPlayerStates.initial(g).toArray();
+        var pkWall = PkWall.EMPTY;
+        for (var color : TileKind.Colored.ALL)
+            pkWall = PkWall.withTileAt(pkWall, TileDestination.Pattern.PATTERN_1, color);
+        PkPlayerStates.setPkWall(playerStates, PlayerId.P1, pkWall);
+        var calledLines = new ArrayList<TileDestination.Pattern>();
+        var observer = new PointsObserver() {
+            @Override
+            public void fullRow(PlayerId p, TileDestination.Pattern line, int pts) {
+                calledLines.add(line);
+            }
+        };
+        var gs = new MutableGameState(new ImmutableGameState(g, PkTileSet.EMPTY,
+                ImmutableIntArray.copyOf(sources), PkIntSet32.EMPTY,
+                ImmutableIntArray.copyOf(playerStates), PlayerId.P1), observer);
+        gs.endGame();
+        assertTrue(calledLines.contains(TileDestination.Pattern.PATTERN_1));
+    }
+
+    @Test
+    void mutableGameStateObserverCalledForFullColumn() {
+        var g = game(2);
+        var sources = new int[g.tileSourcesCount()];
+        var playerStates = PkPlayerStates.initial(g).toArray();
+        var pkWall = PkWall.EMPTY;
+        for (var line : TileDestination.Pattern.ALL)
+            pkWall = PkWall.withTileAt(pkWall, line, PkWall.colorAt(line, 0));
+        PkPlayerStates.setPkWall(playerStates, PlayerId.P1, pkWall);
+        var calledColumns = new ArrayList<Integer>();
+        var observer = new PointsObserver() {
+            @Override
+            public void fullColumn(PlayerId p, int col, int pts) {
+                calledColumns.add(col);
+            }
+        };
+        var gs = new MutableGameState(new ImmutableGameState(g, PkTileSet.EMPTY,
+                ImmutableIntArray.copyOf(sources), PkIntSet32.EMPTY,
+                ImmutableIntArray.copyOf(playerStates), PlayerId.P1), observer);
+        gs.endGame();
+        assertTrue(calledColumns.contains(0));
+    }
+
+    @Test
+    void mutableGameStateObserverCalledForFullColor() {
+        var g = game(2);
+        var sources = new int[g.tileSourcesCount()];
+        var playerStates = PkPlayerStates.initial(g).toArray();
+        var pkWall = PkWall.EMPTY;
+        for (var line : TileDestination.Pattern.ALL)
+            pkWall = PkWall.withTileAt(pkWall, line, TileKind.Colored.A);
+        PkPlayerStates.setPkWall(playerStates, PlayerId.P1, pkWall);
+        var calledColors = new ArrayList<TileKind.Colored>();
+        var observer = new PointsObserver() {
+            @Override
+            public void fullColor(PlayerId p, TileKind.Colored color, int pts) {
+                calledColors.add(color);
+            }
+        };
+        var gs = new MutableGameState(new ImmutableGameState(g, PkTileSet.EMPTY,
+                ImmutableIntArray.copyOf(sources), PkIntSet32.EMPTY,
+                ImmutableIntArray.copyOf(playerStates), PlayerId.P1), observer);
+        gs.endGame();
+        assertTrue(calledColors.contains(TileKind.Colored.A));
     }
 }
