@@ -12,7 +12,7 @@ import java.util.random.RandomGeneratorFactory;
 import static ch.epfl.ajul.Game.PlayerDescription.PlayerKind.HUMAN;
 import static org.junit.jupiter.api.Assertions.*;
 
-class MutableGameStateTest {
+class MyMutableGameStateTest {
 
     private final java.util.random.RandomGenerator seedGenerator =
             RandomGeneratorFactory.getDefault().create(2026);

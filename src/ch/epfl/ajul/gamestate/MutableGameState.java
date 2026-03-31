@@ -15,6 +15,7 @@ import java.util.random.RandomGenerator;
 ///
 /// @author Ismaël Ayachi (393163)
 public final class MutableGameState implements ReadOnlyGameState {
+    private static final int CENTER_AREA_INDEX = TileSource.CENTER_AREA.index();
 
     private final Game game;
     private int pkTileBag;
@@ -101,21 +102,22 @@ public final class MutableGameState implements ReadOnlyGameState {
         else {
             int pkTileBagNotDiscarded = pkTileBag();
             PkTileSet.sampleColoredInto(pkTileBagNotDiscarded, coloredTiles, 0, randomGenerator);
-            pkTileBag = PkTileSet.difference(pkTileBag, pkTileBag);
-            pkTileBag = PkTileSet.union(pkTileBag, pkDiscardedTiles());
+            int pkDiscardedTiles = pkDiscardedTiles();
+            pkTileBag = PkTileSet.EMPTY;
+            pkTileBag = PkTileSet.union(pkTileBag, pkDiscardedTiles);
             int pkTileBagSize = PkTileSet.sampleColoredInto(pkTileBag, coloredTiles,
                     PkTileSet.size(pkTileBagNotDiscarded), randomGenerator);
             if (pkTileBagSize < tilesNeeded){
                 coloredTiles = Arrays.copyOf(coloredTiles, pkTileBagSize);
             }
-            for (TileKind.Colored colored : coloredTiles){
-                pkTileBag = PkTileSet.remove(pkTileBag, colored);
+            for (int i = PkTileSet.size(pkTileBagNotDiscarded); i < coloredTiles.length; i++){
+                pkTileBag = PkTileSet.remove(pkTileBag, coloredTiles[i]);
             }
         }
 
         TileKind.Colored.shuffle(coloredTiles, randomGenerator);
         int coloredTilesIndex = 0;
-        for (int i = 1; i <= game().factoriesCount(); i++) {
+        for (int i = 1; i <= coloredTiles.length / TileSource.Factory.TILES_PER_FACTORY; i++) {
             for (int j = 0; j < TileSource.Factory.TILES_PER_FACTORY; j++) {
                 pkTileSources[i] = PkTileSet.add(pkTileSources[i], coloredTiles[coloredTilesIndex]);
                 coloredTilesIndex++;
@@ -147,8 +149,8 @@ public final class MutableGameState implements ReadOnlyGameState {
                 pkUniqueTileSources = PkIntSet32.add(pkUniqueTileSources, i);
         }
         for (TileKind.Colored colored : TileKind.Colored.ALL) {
-            if (!PkTileSet.isEmpty(pkTileSources().get(0)) &&
-                    PkTileSet.countOf(pkTileSources().get(0), colored) != 0) {
+            if (!PkTileSet.isEmpty(pkTileSources().get(CENTER_AREA_INDEX)) &&
+                    PkTileSet.countOf(pkTileSources().get(CENTER_AREA_INDEX), colored) != 0) {
                 pkUniqueTileSources = PkIntSet32.add(pkUniqueTileSources, 0);
             }
         }
@@ -179,12 +181,13 @@ public final class MutableGameState implements ReadOnlyGameState {
         pkTileSources[playerMoveSource.index()] = pkTileSourcePlayerMove;
 
         if (playerMoveSource instanceof TileSource.Factory && pkTileSourcePlayerMove != PkTileSet.EMPTY) {
-            pkTileSources[0] = PkTileSet.union(pkTileSources().get(0), pkTileSourcePlayerMove);
+            pkTileSources[CENTER_AREA_INDEX] = PkTileSet.union(pkTileSources().get(CENTER_AREA_INDEX), pkTileSourcePlayerMove);
             pkTileSources[playerMoveSource.index()] = PkTileSet.EMPTY;
         }
         else if (playerMoveSource instanceof TileSource.CenterArea &&
-                PkTileSet.countOf(pkTileSources().get(0), TileKind.FIRST_PLAYER_MARKER) == 1) {
-            pkTileSources[0] = PkTileSet.remove(pkTileSources().get(0), TileKind.FIRST_PLAYER_MARKER);
+                PkTileSet.countOf(pkTileSources().get(CENTER_AREA_INDEX), TileKind.FIRST_PLAYER_MARKER) == 1) {
+            pkTileSources[CENTER_AREA_INDEX] = PkTileSet.remove(pkTileSources().get(CENTER_AREA_INDEX),
+                    TileKind.FIRST_PLAYER_MARKER);
             pkFloorPlayer = PkFloor.withAddedTiles(pkFloorPlayer,
                     PkTileSet.of(1, TileKind.FIRST_PLAYER_MARKER));
             PkPlayerStates.setPkFloor(pkPlayerStates, currentPlayerId(), pkFloorPlayer);
@@ -259,7 +262,7 @@ public final class MutableGameState implements ReadOnlyGameState {
                 }
 
                 if (PkFloor.containsFirstPlayerMarker(pkFloorPlayer)) {
-                    pkTileSources[0] = PkTileSet.of(1, TileKind.FIRST_PLAYER_MARKER);
+                    pkTileSources[CENTER_AREA_INDEX] = PkTileSet.of(1, TileKind.FIRST_PLAYER_MARKER);
                     pkUniqueTileSourcesUpdate();
                     pkFloorPlayer = PkFloor.EMPTY;
                     PkPlayerStates.setPkFloor(pkPlayerStates, playerId, pkFloorPlayer);
