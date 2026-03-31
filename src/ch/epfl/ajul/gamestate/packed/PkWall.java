@@ -238,7 +238,7 @@ public final class PkWall {
     /// @param pkWall le mur empaqueté
     /// @return la représentation textuelle du mur
     public static String toString(int pkWall) {
-        StringBuilder b = new StringBuilder();
+        StringBuilder b = new StringBuilder().append("[");
         for (TileDestination.Pattern line : TileDestination.Pattern.ALL) {
             for (int i = 0; i < WALL_HEIGHT; i++) {
                 TileKind.Colored color = colorAt(line, i);
@@ -252,7 +252,7 @@ public final class PkWall {
                 b.append(", ");
             }
         }
-        return "[" + b + "]";
+        return b.append("]").toString();
     }
 
     /// Retourne {@code true} si la valeur empaquetée {@code pkWall} est valide,
@@ -261,7 +261,6 @@ public final class PkWall {
     /// @param pkWall la valeur à vérifier
     /// @return {@code true} si {@code pkWall} est un mur empaqueté valide
     private static boolean isPkWallValid(int pkWall) {
-
         return (pkWall >> (WALL_HEIGHT * WALL_HEIGHT)) == EMPTY;
     }
 }

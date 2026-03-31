@@ -48,7 +48,8 @@ public final class Points {
                 && (vGroupSize > 0 && vGroupSize <= PkWall.WALL_HEIGHT);
         if (vGroupSize == 1) {
             return hGroupSize;
-        } else if (hGroupSize == 1) {
+        }
+        else if (hGroupSize == 1) {
             return vGroupSize;
         }
         return hGroupSize + vGroupSize;
@@ -72,7 +73,7 @@ public final class Points {
     /// @param tilesCount le nombre de tuiles sur le plancher (entre 0 et 7 inclus)
     /// @return la pénalité totale
     public static int totalFloorPenalty(int tilesCount) {
-        assert (tilesCount >= 0 && tilesCount <= FLOOR_TILES);
+        assert tilesCount >= 0 && tilesCount <= FLOOR_TILES;
         return (TOTAL_FLOOR_PENALTY >> (TileSource.Factory.TILES_PER_FACTORY * tilesCount)) & FLOOR_PENALTY_MASK;
     }
 }
