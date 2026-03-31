@@ -24,8 +24,8 @@ public final class PkWall {
     /// Le nombre de lignes du mur, égal au nombre de lignes de motif.
     public static final int WALL_HEIGHT = TileDestination.Pattern.COUNT;
 
-    private static final int ROW0_MASK = 0b00000_00000_00000_00000_11111;
     private static final int COLUMN_MASK = 0b1;
+    private static final int ROW0_MASK = 0b00000_00000_00000_00000_11111;
     private static final int COLOR_A_MASK = 0b10000_01000_00100_00010_00001;
     private static final int COLOR_B_MASK = 0b00001_10000_01000_00100_00010;
     private static final int COLOR_C_MASK = 0b00010_00001_10000_01000_00100;
@@ -100,17 +100,17 @@ public final class PkWall {
     public static int hGroupSize(int pkWall, TileDestination.Pattern line, TileKind.Colored color) {
         assert isPkWallValid(pkWall);
         int groupSize = 1;
+        int indexRight = 1;
+        int indexLeft = 1;
         int col = column(line, color);
-        int indexR = 1;
-        int indexL = 1;
 
-        while ((col + indexR < WALL_WIDTH) && hasTileAt(pkWall, line, colorAt(line, col + indexR))) {
+        while ((col + indexRight < WALL_WIDTH) && hasTileAt(pkWall, line, colorAt(line, col + indexRight))) {
             groupSize++;
-            indexR++;
+            indexRight++;
         }
-        while ((col - indexL >= 0) && hasTileAt(pkWall, line, colorAt(line, col - indexL))) {
+        while ((col - indexLeft >= 0) && hasTileAt(pkWall, line, colorAt(line, col - indexLeft))) {
             groupSize++;
-            indexL++;
+            indexLeft++;
         }
         return groupSize;
     }
@@ -126,22 +126,24 @@ public final class PkWall {
     public static int vGroupSize(int pkWall, TileDestination.Pattern line, TileKind.Colored color) {
         assert isPkWallValid(pkWall);
         int groupSize = 1;
+        int indexUp = 1;
+        int indexDown = 1;
         int col = column(line, color);
-        int indexU = 1;
-        int indexD = 1;
 
-        while ((line.index() + indexU < WALL_HEIGHT) && hasTileAt(pkWall,
-                TileDestination.Pattern.ALL.get(line.index() + indexU),
-                colorAt(TileDestination.Pattern.ALL.get(line.index() + indexU), col))) {
+        while ((line.index() + indexUp < WALL_HEIGHT) &&
+                hasTileAt(pkWall, TileDestination.Pattern.ALL.get(line.index() + indexUp),
+                        colorAt(TileDestination.Pattern.ALL.get(line.index() + indexUp), col))) {
             groupSize++;
-            indexU++;
+            indexUp++;
         }
-        while ((line.index() - indexD >= 0) && hasTileAt(pkWall,
-                TileDestination.Pattern.ALL.get(line.index() - indexD),
-                colorAt(TileDestination.Pattern.ALL.get(line.index() - indexD), col))) {
+
+        while ((line.index() - indexDown >= 0) &&
+                hasTileAt(pkWall, TileDestination.Pattern.ALL.get(line.index() - indexDown),
+                        colorAt(TileDestination.Pattern.ALL.get(line.index() - indexDown), col))) {
             groupSize++;
-            indexD++;
+            indexDown++;
         }
+
         return groupSize;
     }
 
@@ -189,11 +191,11 @@ public final class PkWall {
     /// @return le nombre de cases occupées dans cette colonne
     private static int columnSize(int pkWall, int column) {
         assert isPkWallValid(pkWall);
-        int sum = 0;
+        int size = 0;
         for (int i = 0; i < WALL_HEIGHT; i++) {
-            sum = sum + ((pkWall >> (column + (i * WALL_WIDTH))) & COLUMN_MASK);
+            size += ((pkWall >> (column + (i * WALL_WIDTH))) & COLUMN_MASK);
         }
-        return sum;
+        return size;
     }
 
     /// Retourne {@code true} si la couleur {@code color} est complète dans le mur
@@ -219,8 +221,9 @@ public final class PkWall {
         for (TileKind.Colored tileKind : TileKind.Colored.ALL) {
             int tileKindCount = 0;
             for (int i = 0; i < WALL_WIDTH; i++) {
-                tileKindCount += Integer.bitCount(
-                        (pkWall & (ROW0_MASK << (WALL_WIDTH * i))) & COLOR_MASK_LIST.get(tileKind.index()));
+                int rowMask = ROW0_MASK << (WALL_WIDTH * i);
+                int colorMask = COLOR_MASK_LIST.get(tileKind.index());
+                tileKindCount += Integer.bitCount((pkWall & rowMask) & colorMask);
             }
             newPkTileSet = PkTileSet.union(newPkTileSet, PkTileSet.of(tileKindCount, tileKind));
         }

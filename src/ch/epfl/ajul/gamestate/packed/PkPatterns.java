@@ -18,7 +18,8 @@ public final class PkPatterns {
 
     private static final int PATTERN_LINE_MASK = 0b111;
     private static final int PATTERN_MASK = (PATTERN_LINE_MASK << 3) | PATTERN_LINE_MASK;
-    private static final int PATTERN_LINE_OFFSET = 6;
+    private static final int PATTERN_LINE_OFFSET = TileDestination.Pattern.COUNT + 1 ;
+    private static final int PATTERN_LINE_COLOR_OFFSET = PATTERN_LINE_OFFSET / 2;
 
     /// Lignes de motif vides, ne contenant aucune tuile sur aucune ligne.
     public static final int EMPTY = 0;
@@ -45,7 +46,8 @@ public final class PkPatterns {
     /// @return la couleur des tuiles sur la ligne donnée
     public static TileKind.Colored color(int pkPatterns, TileDestination.Pattern line) {
         assert isSizeValid(pkPatterns, line);
-        return TileKind.Colored.ALL.get((pkPatterns >> (3 + line.index() * PATTERN_LINE_OFFSET)) & PATTERN_LINE_MASK);
+        int rawColorBits = (pkPatterns >> (PATTERN_LINE_COLOR_OFFSET + line.index() * PATTERN_LINE_OFFSET));
+        return TileKind.Colored.ALL.get(rawColorBits & PATTERN_LINE_MASK);
     }
 
     /// Retourne vrai si et seulement si la ligne de motif {@code line} des lignes de motif
@@ -74,8 +76,7 @@ public final class PkPatterns {
     ///        la couleur des tuiles à ajouter
     /// @return {@code true} si la ligne peut contenir des tuiles de la couleur donnée, {@code false} sinon
     public static boolean canContain(int pkPatterns, TileDestination.Pattern line, TileKind.Colored color) {
-        return (size(pkPatterns, line) == EMPTY) ||
-                ((color == color(pkPatterns, line)));
+        return (size(pkPatterns, line) == EMPTY) || ((color == color(pkPatterns, line)));
     }
 
     /// Retourne des lignes de motif empaquetées identiques à {@code pkPatterns} mais avec
@@ -97,7 +98,8 @@ public final class PkPatterns {
             return pkPatterns
                     + (tileCount << (line.index() * PATTERN_LINE_OFFSET))
                     + (color.index() << (3 + line.index() * PATTERN_LINE_OFFSET));
-        } else if (canContain(pkPatterns, line, color)) {
+        }
+        else if (canContain(pkPatterns, line, color)) {
             return pkPatterns + (tileCount << (line.index() * PATTERN_LINE_OFFSET));
         }
         return pkPatterns;
@@ -122,7 +124,7 @@ public final class PkPatterns {
     ///        les lignes de motif empaquetées
     /// @return l'ensemble de tuiles empaqueté correspondant au contenu de toutes les lignes
     public static int asPkTileSet(int pkPatterns) {
-        int pkTileSet = 0;
+        int pkTileSet = PkTileSet.EMPTY;
         for (TileDestination.Pattern line : TileDestination.Pattern.ALL) {
             if (size(pkPatterns, line) > 0) {
                 TileKind.Colored lineColor = color(pkPatterns, line);
@@ -143,24 +145,20 @@ public final class PkPatterns {
     ///        les lignes de motif empaquetées
     /// @return la représentation textuelle des lignes de motif
     public static String toString(int pkPatterns) {
-        ArrayList<String> strArray = new ArrayList<>();
+        StringBuilder sb = new StringBuilder("[");
         for (TileDestination.Pattern line : TileDestination.Pattern.ALL) {
+            if (sb.length() > 1) sb.append(", ");
             int repeatPatternLine = size(pkPatterns, line);
             if (repeatPatternLine == EMPTY) {
-                strArray.add(".".repeat(line.capacity()));
-            }
-
-            else {
+                sb.append(".".repeat(line.capacity()));
+            } else {
                 TileKind.Colored pkPatternsColorLine = color(pkPatterns, line);
-                if (repeatPatternLine < line.capacity()) {
-                    strArray.add(pkPatternsColorLine.toString().repeat(repeatPatternLine)
-                            + ".".repeat(line.capacity() - repeatPatternLine));
-                } else {
-                    strArray.add(pkPatternsColorLine.toString().repeat(repeatPatternLine));
-                }
+                sb.append(pkPatternsColorLine.toString().repeat(repeatPatternLine));
+                if (repeatPatternLine < line.capacity())
+                    sb.append(".".repeat(line.capacity() - repeatPatternLine));
             }
         }
-        return strArray.toString();
+        return sb.append("]").toString();
     }
 
     private static boolean isSizeValid(int pkPatterns, TileDestination.Pattern line) {

@@ -30,6 +30,7 @@ public final class PkFloor {
     /// @return le nombre de tuiles contenues dans la ligne plancher
     public static int size(int pkFloor) {
         return pkFloor & PATTERN_FLOOR_MASK;
+
     }
 
     /// Retourne la sorte de tuile se trouvant à l'index {@code i} de la ligne plancher empaquetée donnée.
@@ -115,7 +116,7 @@ public final class PkFloor {
     ///        la ligne plancher empaquetée
     /// @return l'ensemble de tuiles empaqueté correspondant au contenu de la ligne plancher
     public static int asPkTileSet(int pkFloor) {
-        int newPkTileSet = 0;
+        int newPkTileSet = PkTileSet.EMPTY;
         for (int i = 0; i < size(pkFloor); i++) {
             newPkTileSet = PkTileSet.add(newPkTileSet, tileAt(pkFloor, i));
         }
@@ -131,11 +132,12 @@ public final class PkFloor {
     ///        la ligne plancher empaquetée
     /// @return la représentation textuelle de la ligne plancher
     public static String toString(int pkFloor) {
-        ArrayList<String> strArray = new ArrayList<>();
+        StringBuilder sb = new StringBuilder("[");
         for (int i = 0; i < size(pkFloor); i++) {
-            strArray.add(tileAt(pkFloor, i).toString());
+            if (i > 0) sb.append(", ");
+            sb.append(tileAt(pkFloor, i));
         }
-        return strArray.toString();
+        return sb.append("]").toString();
     }
 
     private static boolean isValid(int pkFloor, int i) {

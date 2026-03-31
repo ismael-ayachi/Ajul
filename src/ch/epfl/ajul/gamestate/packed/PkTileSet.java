@@ -77,10 +77,10 @@ public final class PkTileSet {
     /// @return le nombre total de tuiles contenues dans l'ensemble
     public static int size(int pkTileSet) {
         int extract = pkTileSet + (pkTileSet >> (COLOR_BITS + 1));
-        int extractAandB = extract & ((COLOR_MASK << 1) | 1);
-        int extractCandD = (extract >> COLOR_OFFSET_C) & ((COLOR_MASK << 1) | 1);
-        int extractEandM = (extract >> COLOR_OFFSET_E) & ((COLOR_MASK << 1) | 1);
-        return extractAandB + extractCandD + extractEandM ;
+        int extractAB = extract & ((COLOR_MASK << 1) | 1);
+        int extractCD = (extract >> COLOR_OFFSET_C) & ((COLOR_MASK << 1) | 1);
+        int extractEM = (extract >> COLOR_OFFSET_E) & ((COLOR_MASK << 1) | 1);
+        return extractAB + extractCD + extractEM ;
     }
 
     /// Retourne le nombre de tuiles de la sorte {@code tileKind} que contient l'ensemble empaqueté {@code pkTileSet}.
@@ -164,13 +164,13 @@ public final class PkTileSet {
     ///        le tableau dans lequel les tuiles sont copiées
     /// @return l'index dans {@code destination} de l'élément qui suit le dernier écrit
     public static int copyColoredInto(int pkTileSet, TileKind.Colored[] destination) {
-        int counter = 0;
+        int count = 0;
         for (TileKind.Colored tileKind : TileKind.Colored.ALL) {
             int numberOfTiles = countOf(pkTileSet, tileKind);
-            Arrays.fill(destination, counter, counter + numberOfTiles, tileKind);
-            counter += numberOfTiles;
+            Arrays.fill(destination, count, count + numberOfTiles, tileKind);
+            count += numberOfTiles;
         }
-        return counter;
+        return count;
     }
 
     /// Obtient un échantillon aléatoire de l'ensemble {@code pkTileSet} et le place dans le tableau
@@ -191,12 +191,11 @@ public final class PkTileSet {
         for (TileKind.Colored tileKind : TileKind.Colored.ALL) {
             int numberOfTiles = countOf(pkTileSet, tileKind);
             for (int y = 0; y < numberOfTiles; y++) {
-                int slot = i - offset; // position dans le reservoir
+                int slot = i - offset;
                 if (slot < destination.length - offset) {
-                    // reservoir pas encore plein, on remplit directement
                     destination[offset + slot] = tileKind;
-                } else {
-                    // reservoir plein, on remplace avec probabilité (destination.length - offset) / (slot + 1)
+                }
+                else {
                     int j = randomGenerator.nextInt(0, i - offset + 1);
                     if (j < destination.length - offset) {
                         destination[offset + j] = tileKind;
@@ -217,7 +216,7 @@ public final class PkTileSet {
     ///        l'ensemble de tuiles empaqueté
     /// @return la représentation textuelle de l'ensemble
     public static String toString(int pkTileSet) {
-        StringJoiner j = new StringJoiner(",");
+        StringJoiner j = new StringJoiner(",", "{", "}");
         for (TileKind.Colored tileKind : TileKind.Colored.ALL) {
             int numberOfTiles = countOf(pkTileSet, tileKind);
             if (numberOfTiles > 0) {
@@ -228,26 +227,24 @@ public final class PkTileSet {
         if (numberOfTileM > 0) {
             j.add(numberOfTileM + "*" + TileKind.FirstPlayerMarker.FIRST_PLAYER_MARKER.name());
         }
-        return "{" + j + "}";
+        return j.toString();
     }
 
     private static int computeFull() {
-
-        int tilesOfFull = 0;
+        int pkTileSetFull = PkTileSet.EMPTY;
         for (TileKind tileKind : TileKind.ALL) {
-            tilesOfFull = union(tilesOfFull,of(tileKind.tilesCount(), tileKind));
+            pkTileSetFull = union(pkTileSetFull, of(tileKind.tilesCount(), tileKind));
         }
-        return tilesOfFull;
-
+        return pkTileSetFull;
     }
 
     private static int computeFullColored() {
 
-        int tilesOfFullColored = 0;
+        int pkTileSetFullColored = PkTileSet.EMPTY;
         for (TileKind.Colored tileKind : TileKind.Colored.ALL) {
-            tilesOfFullColored = union(tilesOfFullColored,of(tileKind.tilesCount(), tileKind));
+            pkTileSetFullColored = union(pkTileSetFullColored, of(tileKind.tilesCount(), tileKind));
         }
-        return tilesOfFullColored;
+        return pkTileSetFullColored;
     }
 
     private static boolean isValid(int pkTileSet) {
@@ -258,8 +255,8 @@ public final class PkTileSet {
                 return false;
             }
         }
-
-        int extractFirstPlayerMarker = (pkTileSet >> COLOR_OFFSET_FIRST_PLAYER_MARKER) & ((COLOR_MASK_FIRST_PLAYER_MARKER << 1) | 1);
+        int extractFirstPlayerMarker =
+                (pkTileSet >> COLOR_OFFSET_FIRST_PLAYER_MARKER) & ((COLOR_MASK_FIRST_PLAYER_MARKER << 1) | 1);
         return extractFirstPlayerMarker <= 1;
 
     }

@@ -11,7 +11,7 @@ public final class PkIntSet32 {
     public static final int EMPTY = 0;
 
     /// Masque d'un seul bit, utilisé pour isoler ou modifier un bit dans l'ensemble.
-    public static final int INTSET_MASK = 0b1;
+    public static final int INT32_MASK = 0b1;
 
     /// Retourne {@code true} si l'entier {@code i} appartient à l'ensemble empaqueté
     /// {@code pkIntSet32}.
@@ -21,7 +21,7 @@ public final class PkIntSet32 {
     /// @return {@code true} si {@code i} appartient à l'ensemble, {@code false} sinon
     public static boolean contains(int pkIntSet32, int i) {
         assert isIndexValid(i);
-        return (((pkIntSet32 >> i) & INTSET_MASK) == INTSET_MASK);
+        return (((pkIntSet32 >> i) & INT32_MASK) == INT32_MASK);
     }
 
     /// Retourne {@code true} si tous les éléments de l'ensemble empaqueté
@@ -44,11 +44,7 @@ public final class PkIntSet32 {
     /// @return l'ensemble empaqueté contenant {@code i}
     public static int add(int pkIntSet32, int i) {
         assert isIndexValid(i);
-        if (!contains(pkIntSet32, i)) {
-            return (pkIntSet32 + (INTSET_MASK << i));
-        } else {
-            return pkIntSet32;
-        }
+        return contains(pkIntSet32, i) ? pkIntSet32 : pkIntSet32 + (INT32_MASK << i);
     }
 
     /// Retourne l'ensemble empaqueté obtenu en retirant l'entier {@code i} de
@@ -60,11 +56,7 @@ public final class PkIntSet32 {
     /// @return l'ensemble empaqueté ne contenant plus {@code i}
     public static int remove(int pkIntSet32, int i) {
         assert isIndexValid(i);
-        if (contains(pkIntSet32, i)) {
-            return (pkIntSet32 - (INTSET_MASK << i));
-        } else {
-            return pkIntSet32;
-        }
+        return contains(pkIntSet32, i) ? pkIntSet32 - (INT32_MASK << i) : pkIntSet32;
     }
 
     /// Retourne {@code true} si l'index {@code i} est valide,
@@ -73,6 +65,6 @@ public final class PkIntSet32 {
     /// @param i l'index à valider
     /// @return {@code true} si {@code 0 <= i < 32}
     private static boolean isIndexValid(int i) {
-        return i >= 0 & i < Integer.SIZE;
+        return i >= 0 && i < Integer.SIZE;
     }
 }

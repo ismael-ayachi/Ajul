@@ -28,7 +28,7 @@ public final class PkMove {
     private static final int DESTINATION_BITS = 3;
     private static final int DESTINATION_MASK = (1 << DESTINATION_BITS) - 1;
 
-    /// Empaquète un coup dans un entier de type {@code short}.
+    /// Empaquette un coup dans un entier de type {@code short}.
     ///
     /// @param source
     ///        la source depuis laquelle les tuiles jouées sont obtenues
@@ -38,10 +38,9 @@ public final class PkMove {
     ///        la destination sur laquelle les tuiles jouées sont placées
     /// @return le coup empaqueté correspondant aux paramètres donnés
     public static short pack(TileSource source, TileKind.Colored color, TileDestination destination) {
-        short pkMove = (short) ((TileSource.ALL.indexOf(source) & SOURCE_MASK) << SOURCE_OFFSET
+        return (short) ((TileSource.ALL.indexOf(source) & SOURCE_MASK) << SOURCE_OFFSET
                 | ((TileKind.Colored.ALL.indexOf(color) & COLOR_MASK) << COLOR_OFFSET)
                 | ((TileDestination.ALL.indexOf(destination) & DESTINATION_MASK) << DESTINATION_OFFSET));
-        return pkMove;
     }
 
     /// Retourne la source du coup empaqueté donné.

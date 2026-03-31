@@ -126,6 +126,6 @@ public final class Game {
     ///
     /// @return le nombre maximum de tuiles dans la zone centrale
     public int centralAreaMaxSize() {
-        return 3 * factoriesCount() + 1;
+        return (TileSource.Factory.TILES_PER_FACTORY - 1) * factoriesCount() + 1;
     }
 }

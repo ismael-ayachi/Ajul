@@ -117,10 +117,13 @@ public final class MutableGameState implements ReadOnlyGameState {
 
         TileKind.Colored.shuffle(coloredTiles, randomGenerator);
         int coloredTilesIndex = 0;
-        for (int i = 1; i <= coloredTiles.length / TileSource.Factory.TILES_PER_FACTORY; i++) {
+        for (int i = 1; i < game.tileSourcesCount()  ; i++) {
             for (int j = 0; j < TileSource.Factory.TILES_PER_FACTORY; j++) {
-                pkTileSources[i] = PkTileSet.add(pkTileSources[i], coloredTiles[coloredTilesIndex]);
-                coloredTilesIndex++;
+                if (coloredTilesIndex < coloredTiles.length) {
+                    pkTileSources[i] = PkTileSet.add(pkTileSources[i], coloredTiles[coloredTilesIndex]);
+                    coloredTilesIndex++;
+                }
+
             }
         }
         pkUniqueTileSourcesUpdate();
