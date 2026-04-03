@@ -6,7 +6,7 @@ package ch.epfl.ajul.intarray;
 /// Les instances ne peuvent pas être modifiées après création; la méthode
 /// {@link #copyOf(int[])} effectue une copie défensive du tableau fourni.
 ///
-/// @author Ismael Ayachi (393163)
+/// @author Ismaël Ayachi (393163)
 ///
 public final class ImmutableIntArray extends AbstractIntArray implements ReadOnlyIntArray {
     ///

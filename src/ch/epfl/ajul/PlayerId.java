@@ -16,5 +16,5 @@ public enum PlayerId {
     P4;
 
     /// Liste immuable de tous les identifiants de joueurs, dans l'ordre de déclaration.
-        public static final List<PlayerId> ALL = List.of(values());
+    public static final List<PlayerId> ALL = List.of(values());
 }

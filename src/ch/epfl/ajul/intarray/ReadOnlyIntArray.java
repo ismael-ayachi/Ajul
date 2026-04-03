@@ -3,7 +3,7 @@ package ch.epfl.ajul.intarray;
 ///
 /// Vue en lecture seule d'un tableau d'entiers.
 ///
-/// @author Ismael Ayachi (393163)
+/// @author Ismaël Ayachi (393163)
 ///
 public interface ReadOnlyIntArray {
     ///

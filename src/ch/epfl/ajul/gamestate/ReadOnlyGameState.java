@@ -54,8 +54,13 @@ public interface ReadOnlyGameState {
     ///
     /// @return une version immuable de cet état
     default ImmutableGameState immutable() {
-        return new ImmutableGameState(game(), pkTileBag(), pkTileSources().immutable(),
-                pkUniqueTileSources(), pkPlayerStates().immutable(), currentPlayerId());
+        return new ImmutableGameState(
+                game(),
+                pkTileBag(),
+                pkTileSources().immutable(),
+                pkUniqueTileSources(),
+                pkPlayerStates().immutable(),
+                currentPlayerId());
     }
 
     /// Retourne la liste des identités des joueurs de la partie.
@@ -80,9 +85,11 @@ public interface ReadOnlyGameState {
     ///
     /// @return {@code true} si la partie est terminée
     default boolean isGameOver() {
-        for (int i = 0; i < playerIds().size(); i++) {
-            if (isRoundOver() && PkWall.hasFullRow(PkPlayerStates.pkWall(pkPlayerStates(), playerIds().get(i))))
+        if (!isRoundOver()) return false;
+        for (PlayerId playerId : playerIds()) {
+            if (PkWall.hasFullRow(PkPlayerStates.pkWall(pkPlayerStates(),playerId))){
                 return true;
+            }
         }
         return false;
     }
@@ -95,20 +102,23 @@ public interface ReadOnlyGameState {
     default int pkDiscardedTiles() {
         int tileSourcesSum, pkPatternsSum, pkFloorSum, pkWallSum;
         tileSourcesSum = pkPatternsSum = pkFloorSum = pkWallSum = 0;
-        for (int i = 0; i < playerIds().size(); i++) {
-            PlayerId playerId = playerIds().get(i);
-            pkPatternsSum = PkTileSet.union(pkPatternsSum,
-                    PkPatterns.asPkTileSet(PkPlayerStates.pkPatterns(pkPlayerStates(), playerId)));
-            pkFloorSum = PkTileSet.union(pkFloorSum,
-                    PkFloor.asPkTileSet(PkPlayerStates.pkFloor(pkPlayerStates(), playerId)));
-            pkWallSum = PkTileSet.union(pkWallSum,
-                    PkWall.asPkTileSet(PkPlayerStates.pkWall(pkPlayerStates(), playerId)));
+        for (PlayerId playerId : playerIds()) {
+            int pkPatterns = PkPlayerStates.pkPatterns(pkPlayerStates(), playerId);
+            int pkFloor = PkPlayerStates.pkFloor(pkPlayerStates(), playerId);
+            int pkWall = PkPlayerStates.pkWall(pkPlayerStates(), playerId);
+            pkPatternsSum = PkTileSet.union(pkPatternsSum, PkPatterns.asPkTileSet(pkPatterns));
+            pkFloorSum = PkTileSet.union(pkFloorSum, PkFloor.asPkTileSet(pkFloor));
+            pkWallSum = PkTileSet.union(pkWallSum, PkWall.asPkTileSet(pkWall));
         }
-        for (int i = 0; i < pkTileSources().size(); i++)
-            tileSourcesSum = PkTileSet.union(tileSourcesSum, pkTileSources().get(i));
-        int pkTileSetSum = PkTileSet.union(
-                PkTileSet.union(tileSourcesSum, pkPatternsSum),
-                PkTileSet.union(PkTileSet.union(pkFloorSum, pkWallSum), pkTileBag()));
+        for (TileSource tileSource : game().tileSources()){
+            tileSourcesSum = PkTileSet.union(tileSourcesSum, pkTileSources().get(tileSource.index()));
+        }
+
+        int pkTileSetSum = PkTileSet.union(tileSourcesSum, pkPatternsSum);
+        pkTileSetSum = PkTileSet.union(pkTileSetSum, pkFloorSum);
+        pkTileSetSum = PkTileSet.union(pkTileSetSum, pkWallSum);
+        pkTileSetSum = PkTileSet.union(pkTileSetSum, pkTileBag());
+
         return PkTileSet.difference(PkTileSet.FULL, pkTileSetSum);
     }
 
@@ -146,24 +156,27 @@ public interface ReadOnlyGameState {
     private int validMovesCommon(short[] destination, boolean allSources) {
         int count = 0;
         if (destination.length >= Move.MAX_MOVES) {
+            int currentPlayerPkPattern = PkPlayerStates.pkPatterns(pkPlayerStates(), currentPlayerId());
+            int currentPlayerPkWall = PkPlayerStates.pkWall(pkPlayerStates(), currentPlayerId());
+            // Enumération de toutes les combinaisons source × couleur × destination
             for (TileSource tileSource : game().tileSources()) {
                 if (allSources || PkIntSet32.contains(pkUniqueTileSources(), tileSource.index())) {
-                    for (TileKind.Colored tileKindColored : TileKind.Colored.ALL) {
-                        int currentPlayerPkPattern = PkPlayerStates.pkPatterns(pkPlayerStates(), currentPlayerId());
-                        int currentPlayerPkWall = PkPlayerStates.pkWall(pkPlayerStates(), currentPlayerId());
-                        for (TileDestination.Pattern tileDestination : TileDestination.Pattern.ALL) {
-                            boolean pkPatternCanContain =
-                                    !PkPatterns.isFull(currentPlayerPkPattern, tileDestination) &&
-                                            PkPatterns.canContain(currentPlayerPkPattern, tileDestination, tileKindColored) &&
-                                            !PkWall.hasTileAt(currentPlayerPkWall, tileDestination, tileKindColored);
-                            if (PkTileSet.countOf(pkTileSources().get(tileSource.index()), tileKindColored) != PkTileSet.EMPTY
+                    for (TileKind.Colored colored : TileKind.Colored.ALL) {
+                        // Coup vers une ligne de motif (si la source contient la couleur et la ligne peut l'accueillir)
+                        for (TileDestination.Pattern line : TileDestination.Pattern.ALL) {
+
+                            boolean pkPatternCanContain = pkPatternCanContain(currentPlayerPkPattern,
+                                    currentPlayerPkWall, line, colored);
+
+                            if (PkTileSet.countOf(pkTileSources().get(tileSource.index()), colored) != PkTileSet.EMPTY
                                     && pkPatternCanContain) {
-                                destination[count] = PkMove.pack(tileSource, tileKindColored, tileDestination);
+                                destination[count] = PkMove.pack(tileSource, colored, line);
                                 count++;
                             }
                         }
-                        if (PkTileSet.countOf(pkTileSources().get(tileSource.index()), tileKindColored) != PkTileSet.EMPTY) {
-                            destination[count] = PkMove.pack(tileSource, tileKindColored, TileDestination.FLOOR);
+                        // Coup vers la ligne plancher (toujours valide si la source contient la couleur)
+                        if (PkTileSet.countOf(pkTileSources().get(tileSource.index()), colored) != PkTileSet.EMPTY) {
+                            destination[count] = PkMove.pack(tileSource, colored, TileDestination.FLOOR);
                             count++;
                         }
                     }
@@ -171,5 +184,14 @@ public interface ReadOnlyGameState {
             }
         }
         return count;
+    }
+
+    /// Vérifie si une tuile peut être placée sur une ligne de motif
+    private boolean pkPatternCanContain(int pkPatterns, int pkWall,
+                                        TileDestination.Pattern line, TileKind.Colored colored) {
+        return !PkPatterns.isFull(pkPatterns, line)
+                && PkPatterns.canContain(pkPatterns, line, colored)
+                && !PkWall.hasTileAt(pkWall, line, colored);
+
     }
 }

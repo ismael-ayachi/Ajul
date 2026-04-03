@@ -19,19 +19,10 @@ public final class Points {
     /// Points bonus pour chaque couleur complète (5 tuiles) en fin de partie.
     public static final int FULL_COLOR_BONUS_POINTS = 10;
 
-    /// Nombre maximal de tuiles pouvant être placées sur le plancher.
     private static final int FLOOR_TILES = 7;
-
-    /// Pénalités individuelles pour chaque case du plancher, encodées sur 4 bits
-    /// par case (de droite à gauche) : 1, 1, 2, 2, 2, 3, 3.
+    private static final int FLOOR_PENALTY_BITS = 4;
     private static final int FLOOR_PENALTY = 0x3322211;
-
-    /// Masque pour extraire une pénalité individuelle sur 4 bits.
     private static final int FLOOR_PENALTY_MASK = 0b1111;
-
-    /// Pénalités cumulées pour {@code n} tuiles sur le plancher, encodées sur 4 bits
-    /// par valeur. La valeur à l'index {@code n} correspond à la pénalité totale
-    /// pour {@code n} tuiles.
     private static final int TOTAL_FLOOR_PENALTY = (FLOOR_PENALTY * 0x1111111) << 4;
 
     /// Retourne le nombre de points obtenus lors du placement d'une tuile sur le mur,
@@ -63,7 +54,7 @@ public final class Points {
     /// @return la pénalité de cette tuile
     public static int floorPenalty(int tileIndex) {
         assert (tileIndex >= 0 && tileIndex < FLOOR_TILES);
-        return (FLOOR_PENALTY >> (TileSource.Factory.TILES_PER_FACTORY * tileIndex)) & FLOOR_PENALTY_MASK;
+        return (FLOOR_PENALTY >> (FLOOR_PENALTY_BITS * tileIndex)) & FLOOR_PENALTY_MASK;
     }
 
     /// Retourne la pénalité totale pour {@code tilesCount} tuiles sur le plancher
@@ -74,6 +65,6 @@ public final class Points {
     /// @return la pénalité totale
     public static int totalFloorPenalty(int tilesCount) {
         assert tilesCount >= 0 && tilesCount <= FLOOR_TILES;
-        return (TOTAL_FLOOR_PENALTY >> (TileSource.Factory.TILES_PER_FACTORY * tilesCount)) & FLOOR_PENALTY_MASK;
+        return (TOTAL_FLOOR_PENALTY >> (FLOOR_PENALTY_BITS * tilesCount)) & FLOOR_PENALTY_MASK;
     }
 }

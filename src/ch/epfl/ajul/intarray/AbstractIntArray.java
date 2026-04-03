@@ -9,7 +9,7 @@ import java.util.Arrays;
 /// d'accès et de conversion, et laisse aux sous-classes le choix de la
 /// politique de mutabilité (immuable / enveloppante, etc.).
 ///
-/// @author Ismael Ayachi (393163)
+/// @author Ismaël Ayachi (393163)
 ///
 public abstract class AbstractIntArray implements ReadOnlyIntArray {
     private final int[] tab;

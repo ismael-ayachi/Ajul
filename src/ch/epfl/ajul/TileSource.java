@@ -8,7 +8,7 @@ import java.util.List;
 /// L'interface expose des constantes pratiques et des collections des valeurs
 /// (centre + 9 fabriques).
 ///
-/// @author Ismael Ayachi (393163)
+/// @author Ismaël Ayachi (393163)
 ///
 public sealed interface TileSource {
     ///  La zone centrale.
@@ -53,7 +53,7 @@ public sealed interface TileSource {
     ///
     /// La zone centrale.
     ///
-    /// @author Ismael Ayachi (393163)
+    /// @author Ismaël Ayachi (393163)
     ///
     enum CenterArea implements TileSource {
         ///  La zone centrale.
@@ -73,7 +73,7 @@ public sealed interface TileSource {
     ///
     /// Les fabriques.
     ///
-    /// @author Ismael Ayachi (393163)
+    /// @author Ismaël Ayachi (393163)
     ///
     enum Factory implements TileSource {
         FACTORY_1, FACTORY_2, FACTORY_3, FACTORY_4, FACTORY_5, FACTORY_6, FACTORY_7, FACTORY_8, FACTORY_9;

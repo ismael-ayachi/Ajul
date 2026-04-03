@@ -17,9 +17,15 @@ import static java.util.Objects.requireNonNull;
 /// @param pkPlayerStates       le tableau immuable des états empaquetés des joueurs
 /// @param currentPlayerId      l'identité du joueur courant
 /// @author Ismaël Ayachi (393163)
-public record ImmutableGameState(Game game, int pkTileBag, ImmutableIntArray pkTileSources,
-                                 int pkUniqueTileSources, ImmutableIntArray pkPlayerStates,
+public record ImmutableGameState(Game game,
+                                 int pkTileBag,
+                                 ImmutableIntArray pkTileSources,
+                                 int pkUniqueTileSources,
+                                 ImmutableIntArray pkPlayerStates,
                                  PlayerId currentPlayerId) implements ReadOnlyGameState {
+
+
+    private static final int CENTER_AREA_INDEX = TileSource.CENTER_AREA.index();
 
     /// Constructeur compact vérifiant qu'aucun argument pouvant être {@code null} ne l'est.
     ///
@@ -37,17 +43,23 @@ public record ImmutableGameState(Game game, int pkTileBag, ImmutableIntArray pkT
     /// la totalité des tuiles colorées (20 de chaque couleur), et le joueur courant est
     /// le premier joueur de la partie.
     ///
-    /// @param game la configuration de la partie
+    /// @param game
+    ///        la configuration de la partie
     /// @return l'état initial de la partie
     public static ImmutableGameState initial(Game game) {
         int[] pkTileSources = new int[game.tileSourcesCount()];
-        for (int i=0; i < game.tileSourcesCount(); i++){
-            pkTileSources[i] = PkTileSet.EMPTY;
+        for (TileSource tileSource : game.tileSources()){
+            pkTileSources[tileSource.index()] = PkTileSet.EMPTY;
         }
-        pkTileSources[0] = PkTileSet.of(1, TileKind.FIRST_PLAYER_MARKER);
-        return new ImmutableGameState(game, PkTileSet.FULL_COLORED,
-                ImmutableIntArray.copyOf(pkTileSources), PkIntSet32.EMPTY,
-                PkPlayerStates.initial(game), game.playerIds().getFirst());
+        pkTileSources[CENTER_AREA_INDEX] = PkTileSet.of(1, TileKind.FIRST_PLAYER_MARKER);
+        return new ImmutableGameState(
+                game,
+                PkTileSet.FULL_COLORED,
+                ImmutableIntArray.copyOf(pkTileSources),
+                PkIntSet32.EMPTY,
+                PkPlayerStates.initial(game),
+                game.playerIds().getFirst()
+        );
     }
 
     /// Retourne cet état lui-même, évitant ainsi la création d'une copie inutile

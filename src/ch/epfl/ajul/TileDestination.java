@@ -9,7 +9,7 @@ import java.util.List;
 /// plancher (floor). L'interface fournit également des constantes pratiques et
 /// des collections des valeurs.
 ///
-/// @author Ismael Ayachi (393163)
+/// @author Ismaël Ayachi (393163)
 ///
 public sealed interface TileDestination {
     ///  Destination correspondant à la première ligne de motif.
@@ -47,7 +47,7 @@ public sealed interface TileDestination {
     ///
     /// Destination correspondant à une ligne de motif (pattern).
     ///
-    /// @author Ismael Ayachi (393163)
+    /// @author Ismaël Ayachi (393163)
     ///
     enum Pattern implements TileDestination {
         ///  Première ligne de motif.
@@ -90,7 +90,7 @@ public sealed interface TileDestination {
     ///
     /// Destination correspondant au plancher (floor).
     ///
-    /// @author Ismael Ayachi (393163)
+    /// @author Ismaël Ayachi (393163)
     ///
     enum Floor implements TileDestination {
         ///  Le plancher.

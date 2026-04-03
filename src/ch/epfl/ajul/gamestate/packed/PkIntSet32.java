@@ -11,17 +11,17 @@ public final class PkIntSet32 {
     public static final int EMPTY = 0;
 
     /// Masque d'un seul bit, utilisé pour isoler ou modifier un bit dans l'ensemble.
-    public static final int INT32_MASK = 0b1;
+    public static final int ONE_BIT_MASK = 0b1;
 
     /// Retourne {@code true} si l'entier {@code i} appartient à l'ensemble empaqueté
     /// {@code pkIntSet32}.
     ///
     /// @param pkIntSet32 l'ensemble empaqueté
-    /// @param i          l'entier dont on teste l'appartenance (entre 0 et 31 inclus)
+    /// @param i l'entier dont on teste l'appartenance (entre 0 et 31 inclus)
     /// @return {@code true} si {@code i} appartient à l'ensemble, {@code false} sinon
     public static boolean contains(int pkIntSet32, int i) {
         assert isIndexValid(i);
-        return (((pkIntSet32 >> i) & INT32_MASK) == INT32_MASK);
+        return (((pkIntSet32 >> i) & ONE_BIT_MASK) == ONE_BIT_MASK);
     }
 
     /// Retourne {@code true} si tous les éléments de l'ensemble empaqueté
@@ -40,11 +40,11 @@ public final class PkIntSet32 {
     /// l'ensemble est retourné inchangé.
     ///
     /// @param pkIntSet32 l'ensemble empaqueté
-    /// @param i          l'entier à ajouter (entre 0 et 31 inclus)
+    /// @param i l'entier à ajouter (entre 0 et 31 inclus)
     /// @return l'ensemble empaqueté contenant {@code i}
     public static int add(int pkIntSet32, int i) {
         assert isIndexValid(i);
-        return contains(pkIntSet32, i) ? pkIntSet32 : pkIntSet32 + (INT32_MASK << i);
+        return pkIntSet32 | (ONE_BIT_MASK << i);
     }
 
     /// Retourne l'ensemble empaqueté obtenu en retirant l'entier {@code i} de
@@ -52,11 +52,11 @@ public final class PkIntSet32 {
     /// l'ensemble est retourné inchangé.
     ///
     /// @param pkIntSet32 l'ensemble empaqueté
-    /// @param i          l'entier à retirer (entre 0 et 31 inclus)
+    /// @param i l'entier à retirer (entre 0 et 31 inclus)
     /// @return l'ensemble empaqueté ne contenant plus {@code i}
     public static int remove(int pkIntSet32, int i) {
         assert isIndexValid(i);
-        return contains(pkIntSet32, i) ? pkIntSet32 - (INT32_MASK << i) : pkIntSet32;
+        return pkIntSet32 & ~(ONE_BIT_MASK << i);
     }
 
     /// Retourne {@code true} si l'index {@code i} est valide,

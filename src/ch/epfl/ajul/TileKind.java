@@ -9,7 +9,7 @@ import java.util.random.RandomGenerator;
 /// L'interface expose des constantes pratiques, ainsi que des méthodes
 /// permettant d'obtenir l'indice du type et le nombre de tuiles disponibles.
 ///
-/// @author Ismael Ayachi (393163)
+/// @author Ismaël Ayachi (393163)
 ///
 public sealed interface TileKind {
     ///  Tuile de type A.
@@ -47,7 +47,7 @@ public sealed interface TileKind {
     ///
     /// Types de tuiles colorées.
     ///
-    /// @author Ismael Ayachi (393163)
+    /// @author Ismaël Ayachi (393163)
     ///
     enum Colored implements TileKind {
         A, B, C, D, E;
@@ -97,7 +97,7 @@ public sealed interface TileKind {
     ///
     /// Marqueur de premier joueur.
     ///
-    /// @author Ismael Ayachi (393163)
+    /// @author Ismaël Ayachi (393163)
     ///
     enum FirstPlayerMarker implements TileKind {
         ///  Le marqueur de premier joueur.

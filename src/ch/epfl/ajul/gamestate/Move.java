@@ -24,7 +24,7 @@ public record Move(TileSource source, TileKind.Colored tileColor, TileDestinatio
     /// Le nombre maximum de coups entre lesquels un joueur peut avoir à choisir,
     /// calculé comme le produit du nombre de fabriques, du nombre de couleurs de tuiles
     /// et du nombre de destinations.
-    public static final int MAX_MOVES = 
+    public static final int MAX_MOVES =
             TileSource.Factory.COUNT * TileSource.Factory.TILES_PER_FACTORY * TileDestination.COUNT;
 
     /// Constructeur compact vérifiant qu'aucun des attributs n'est {@code null}.
@@ -39,14 +39,10 @@ public record Move(TileSource source, TileKind.Colored tileColor, TileDestinatio
 
     /// Retourne le coup correspondant au coup empaqueté donné.
     ///
-    /// @param pkMove
-    ///        le coup empaqueté
+    /// @param pkMove le coup empaqueté
     /// @return le coup correspondant au coup empaqueté donné
     public static Move ofPacked(short pkMove) {
-        TileSource pkMoveSource = PkMove.source(pkMove);
-        TileKind.Colored pkMoveColor = PkMove.color(pkMove);
-        TileDestination pkMoveDestination = PkMove.destination(pkMove);
-        return new Move(pkMoveSource, pkMoveColor, pkMoveDestination);
+        return new Move(PkMove.source(pkMove), PkMove.color(pkMove), PkMove.destination(pkMove));
     }
 
     /// Retourne le coup empaqueté correspondant à ce coup.

@@ -2,8 +2,6 @@ package ch.epfl.ajul.gamestate.packed;
 
 import ch.epfl.ajul.TileDestination;
 import ch.epfl.ajul.TileKind;
-
-import java.util.ArrayList;
 import java.util.List;
 
 /// Représentation compacte du mur d'un joueur, empaqueté dans un {@code int}
@@ -31,14 +29,17 @@ public final class PkWall {
     private static final int COLOR_C_MASK = 0b00010_00001_10000_01000_00100;
     private static final int COLOR_D_MASK = 0b00100_00010_00001_10000_01000;
     private static final int COLOR_E_MASK = 0b01000_00100_00010_00001_10000;
-    private static final ArrayList<Integer> COLOR_MASK_LIST = new ArrayList<>(
-            List.of(COLOR_A_MASK, COLOR_B_MASK, COLOR_C_MASK, COLOR_D_MASK, COLOR_E_MASK));
+    /// Chaque masque de la liste identifie les 5 positions d'une couleur sur le mur.
+    private static final List<Integer> COLOR_MASK_LIST =
+            List.of(COLOR_A_MASK, COLOR_B_MASK, COLOR_C_MASK, COLOR_D_MASK, COLOR_E_MASK);
 
     /// Retourne l'index (entre 0 et 24 inclus) de la case du mur correspondant
     /// à la ligne {@code line} et à la couleur {@code color}.
     ///
-    /// @param line  la ligne de motif
-    /// @param color la couleur de la tuile
+    /// @param line
+    ///        la ligne de motif
+    /// @param color
+    ///        la couleur de la tuile
     /// @return l'index de la case dans le mur empaqueté
     public static int indexOf(TileDestination.Pattern line, TileKind.Colored color) {
         return (line.index() * WALL_WIDTH) + column(line, color);
@@ -48,7 +49,7 @@ public final class PkWall {
     /// {@code color} sur la ligne {@code line}.
     /// Les couleurs tournent d'une ligne à l'autre selon la règle du jeu.
     ///
-    /// @param line  la ligne de motif
+    /// @param line la ligne de motif
     /// @param color la couleur de la tuile
     /// @return la colonne de cette couleur sur cette ligne
     public static int column(TileDestination.Pattern line, TileKind.Colored color) {
@@ -89,6 +90,33 @@ public final class PkWall {
         return PkIntSet32.contains(pkWall, indexOf(line, color));
     }
 
+    /// Retourne la taille du groupe consécutif de tuiles contenant la case
+    /// ({@code line}, {@code col}) du mur {@code pkWall}.
+    ///
+    /// @param pkWall      le mur empaqueté
+    /// @param line        la ligne de motif
+    /// @param col         la colonne de la tuile de référence
+    /// @param isHorizontal  {@code true} pour un groupe horizontal, {@code false} pour vertical
+    /// @return le nombre de tuiles consécutives autour de la case
+    private static int groupSize(int pkWall, TileDestination.Pattern line, int col, boolean isHorizontal) {
+        int start = isHorizontal ? col        : line.index();
+        int bound = isHorizontal ? WALL_WIDTH : WALL_HEIGHT;
+        int size = 1;
+        int i = start + 1;
+        while (i < bound && hasTileAt(pkWall, isHorizontal ? line : TileDestination.Pattern.ALL.get(i),
+                colorAt(isHorizontal ? line : TileDestination.Pattern.ALL.get(i), isHorizontal ? i : col))) {
+            size++;
+            i++;
+        }
+        i = start - 1;
+        while (i >= 0 && hasTileAt(pkWall, isHorizontal ? line : TileDestination.Pattern.ALL.get(i),
+                colorAt(isHorizontal ? line : TileDestination.Pattern.ALL.get(i), isHorizontal ? i : col))) {
+            size++;
+            i--;
+        }
+        return size;
+    }
+
     /// Retourne la taille du groupe horizontal de tuiles consécutives contenant
     /// la tuile de couleur {@code color} sur la ligne {@code line} du mur {@code pkWall}.
     /// La tuile elle-même est incluse dans le groupe.
@@ -99,20 +127,7 @@ public final class PkWall {
     /// @return le nombre de tuiles consécutives horizontalement autour de cette tuile
     public static int hGroupSize(int pkWall, TileDestination.Pattern line, TileKind.Colored color) {
         assert isPkWallValid(pkWall);
-        int groupSize = 1;
-        int indexRight = 1;
-        int indexLeft = 1;
-        int col = column(line, color);
-
-        while ((col + indexRight < WALL_WIDTH) && hasTileAt(pkWall, line, colorAt(line, col + indexRight))) {
-            groupSize++;
-            indexRight++;
-        }
-        while ((col - indexLeft >= 0) && hasTileAt(pkWall, line, colorAt(line, col - indexLeft))) {
-            groupSize++;
-            indexLeft++;
-        }
-        return groupSize;
+        return groupSize(pkWall, line, column(line, color), true);
     }
 
     /// Retourne la taille du groupe vertical de tuiles consécutives contenant
@@ -125,26 +140,7 @@ public final class PkWall {
     /// @return le nombre de tuiles consécutives verticalement autour de cette tuile
     public static int vGroupSize(int pkWall, TileDestination.Pattern line, TileKind.Colored color) {
         assert isPkWallValid(pkWall);
-        int groupSize = 1;
-        int indexUp = 1;
-        int indexDown = 1;
-        int col = column(line, color);
-
-        while ((line.index() + indexUp < WALL_HEIGHT) &&
-                hasTileAt(pkWall, TileDestination.Pattern.ALL.get(line.index() + indexUp),
-                        colorAt(TileDestination.Pattern.ALL.get(line.index() + indexUp), col))) {
-            groupSize++;
-            indexUp++;
-        }
-
-        while ((line.index() - indexDown >= 0) &&
-                hasTileAt(pkWall, TileDestination.Pattern.ALL.get(line.index() - indexDown),
-                        colorAt(TileDestination.Pattern.ALL.get(line.index() - indexDown), col))) {
-            groupSize++;
-            indexDown++;
-        }
-
-        return groupSize;
+        return groupSize(pkWall, line, column(line, color), false);
     }
 
     /// Retourne {@code true} si au moins une ligne du mur empaqueté {@code pkWall}
@@ -154,11 +150,12 @@ public final class PkWall {
     /// @return {@code true} si au moins une ligne est complète
     public static boolean hasFullRow(int pkWall) {
         assert isPkWallValid(pkWall);
-        boolean fullRow = false;
         for (int i = 0; i < WALL_HEIGHT; i++) {
-            fullRow = fullRow || (((pkWall >> (WALL_WIDTH * i)) & ROW0_MASK) == ROW0_MASK);
+            if (((pkWall >> (WALL_WIDTH * i)) & ROW0_MASK) == ROW0_MASK) {
+                return true;
+            }
         }
-        return fullRow;
+        return false;
     }
 
     /// Retourne {@code true} si la ligne {@code line} du mur empaqueté {@code pkWall}
@@ -203,7 +200,7 @@ public final class PkWall {
     /// présente sur chacune des 5 lignes.
     ///
     /// @param pkWall le mur empaqueté
-    /// @param color  la couleur à tester
+    /// @param color la couleur à tester
     /// @return {@code true} si la couleur est complète
     public static boolean isColorFull(int pkWall, TileKind.Colored color) {
         assert isPkWallValid(pkWall);
@@ -220,9 +217,9 @@ public final class PkWall {
         int newPkTileSet = PkTileSet.EMPTY;
         for (TileKind.Colored tileKind : TileKind.Colored.ALL) {
             int tileKindCount = 0;
+            int colorMask = COLOR_MASK_LIST.get(tileKind.index());
             for (int i = 0; i < WALL_WIDTH; i++) {
                 int rowMask = ROW0_MASK << (WALL_WIDTH * i);
-                int colorMask = COLOR_MASK_LIST.get(tileKind.index());
                 tileKindCount += Integer.bitCount((pkWall & rowMask) & colorMask);
             }
             newPkTileSet = PkTileSet.union(newPkTileSet, PkTileSet.of(tileKindCount, tileKind));
@@ -242,11 +239,9 @@ public final class PkWall {
         for (TileDestination.Pattern line : TileDestination.Pattern.ALL) {
             for (int i = 0; i < WALL_HEIGHT; i++) {
                 TileKind.Colored color = colorAt(line, i);
-                if (hasTileAt(pkWall, line, color)) {
-                    b.append(color.toString().toUpperCase());
-                } else {
-                    b.append(color.toString().toLowerCase());
-                }
+                b.append(hasTileAt(pkWall, line, color)
+                        ? color.toString().toUpperCase()
+                        : color.toString().toLowerCase());
             }
             if (line != TileDestination.Pattern.PATTERN_5) {
                 b.append(", ");
@@ -261,6 +256,6 @@ public final class PkWall {
     /// @param pkWall la valeur à vérifier
     /// @return {@code true} si {@code pkWall} est un mur empaqueté valide
     private static boolean isPkWallValid(int pkWall) {
-        return (pkWall >> (WALL_HEIGHT * WALL_HEIGHT)) == EMPTY;
+        return (pkWall >> (WALL_WIDTH * WALL_HEIGHT)) == EMPTY;
     }
 }

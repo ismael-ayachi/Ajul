@@ -7,7 +7,7 @@ package ch.epfl.ajul.intarray;
 /// modification du tableau passé en argument se reflète donc dans l'instance,
 /// et inversement.
 ///
-/// @author Ismael Ayachi (393163)
+/// @author Ismaël Ayachi (393163)
 ///
 public final class MutableIntArray extends AbstractIntArray {
     ///
