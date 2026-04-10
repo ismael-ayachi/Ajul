@@ -3,16 +3,12 @@ package ch.epfl.ajul;
 import ch.epfl.ajul.gamestate.ReadOnlyGameState;
 import ch.epfl.ajul.gamestate.packed.PkPlayerStates;
 import ch.epfl.ajul.gamestate.packed.PkWall;
-import ch.epfl.ajul.intarray.ReadOnlyIntArray;
-import org.junit.platform.commons.util.CollectionUtils;
-
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
 
 public final class RankComputer {
 
     private static final int POINTS_WEIGHT_OFFSET = 3;
+
     public static void playersRank(ReadOnlyGameState gameState, int[] array) {
         assert isArraySizeValid(gameState, array);
         for (PlayerId playerId : gameState.playerIds()) {
@@ -24,11 +20,19 @@ public final class RankComputer {
             array[playerId.ordinal()] = rankScorePacked;
         }
         Arrays.sort(array);
-
+        //Tri par ordre décroissant
         for (int i = 0; i < array.length/2 ; i++) {
             int tmp = array[i];
             array[i] = array[(array.length - i) - 1];
             array[(array.length - i) - 1] = tmp;
+        }
+        //Remplacement des scores dans array par les rangs des joueurs
+        int previousScore = array[0];
+        array[0] = 0;
+        for (int i = 1; i < array.length; i++) {
+            int currentScore = array[i];
+            array[i] = (currentScore == previousScore) ? array[i - 1] : i;
+            previousScore = currentScore;
         }
 
     }

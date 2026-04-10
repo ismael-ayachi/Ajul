@@ -15,21 +15,20 @@ public final class MctsNode {
     private static final int MOVE_MASK = (1 << COUNTER_OFFSET) - 1;
     private static final int EXPLORATION_CONSTANT = 80;
 
-
-    public void newRoot() {
-        packedMove = MOVE_MASK | (1 << COUNTER_OFFSET);
-        totalPoints = 0;
-        childNode = null;
-    }
-
-    public void newMoveNode(int packedMove) {
-        this.packedMove = packedMove;
-        totalPoints = 0;
-        childNode = null;
+    private MctsNode(int packedMove, int initialCount){
+        this.packedMove = packedMove | (initialCount << COUNTER_OFFSET);
 
     }
 
-    public int pkMove() {
+    public static MctsNode newRoot() {
+        return new MctsNode(MOVE_MASK, 1);
+    }
+
+    public static MctsNode newMoveNode(int packedMove) {
+        return new MctsNode(packedMove, 0);
+    }
+
+    public static int pkMove() {
         return packedMove & MOVE_MASK;
 
     }
@@ -62,7 +61,7 @@ public final class MctsNode {
                 assert isValid(childNode.gameCount()) && isValid(gameCount()); // Ou alors juste un if ?
                 int parentGameCount = gameCount();
                 double exploration = EXPLORATION_CONSTANT
-                        * Math.sqrt((double) 2 * Math.log(parentGameCount) / childNode.gameCount());
+                                * Math.sqrt((double) 2 * Math.log(parentGameCount) / childNode.gameCount());
                 double nodePriority = childNode.averagePoints() + exploration;
                 childNodePriority.add(nodePriority);
             }
