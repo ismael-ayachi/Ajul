@@ -17,7 +17,6 @@ public final class MctsNode {
 
     private MctsNode(int packedMove, int initialCount){
         this.packedMove = packedMove | (initialCount << COUNTER_OFFSET);
-
     }
 
     public static MctsNode newRoot() {
@@ -28,7 +27,7 @@ public final class MctsNode {
         return new MctsNode(packedMove, 0);
     }
 
-    public static int pkMove() {
+    public int pkMove() {
         return packedMove & MOVE_MASK;
 
     }

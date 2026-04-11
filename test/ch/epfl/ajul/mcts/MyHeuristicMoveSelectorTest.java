@@ -6,163 +6,142 @@ import ch.epfl.ajul.gamestate.packed.*;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
-import java.util.random.RandomGenerator;
+import java.util.random.RandomGeneratorFactory;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class MyHeuristicMoveSelectorTest {
+class MyHeuristicMoveSelectorTest {
 
-    private static Game game2Players() {
+    static Game game2P() {
         return new Game(List.of(
-                new Game.PlayerDescription(PlayerId.P1, "Alice", Game.PlayerDescription.PlayerKind.HUMAN),
-                new Game.PlayerDescription(PlayerId.P2, "Bob", Game.PlayerDescription.PlayerKind.AI)
-        ));
+                new Game.PlayerDescription(PlayerId.P1, "P1", Game.PlayerDescription.PlayerKind.HUMAN),
+                new Game.PlayerDescription(PlayerId.P2, "P2", Game.PlayerDescription.PlayerKind.HUMAN)));
     }
 
-    private static Game game4Players() {
+    static Game game4P() {
         return new Game(List.of(
-                new Game.PlayerDescription(PlayerId.P1, "Alice", Game.PlayerDescription.PlayerKind.HUMAN),
-                new Game.PlayerDescription(PlayerId.P2, "Bob", Game.PlayerDescription.PlayerKind.AI),
-                new Game.PlayerDescription(PlayerId.P3, "Charlie", Game.PlayerDescription.PlayerKind.AI),
-                new Game.PlayerDescription(PlayerId.P4, "Diana", Game.PlayerDescription.PlayerKind.AI)
-        ));
-    }
-
-    private static MutableGameState setupGameWithFactories(Game game, RandomGenerator rng) {
-        ImmutableGameState state = ImmutableGameState.initial(game);
-        MutableGameState mgs = new MutableGameState(state);
-        mgs.fillFactories(rng);
-        return mgs;
+                new Game.PlayerDescription(PlayerId.P1, "P1", Game.PlayerDescription.PlayerKind.HUMAN),
+                new Game.PlayerDescription(PlayerId.P2, "P2", Game.PlayerDescription.PlayerKind.HUMAN),
+                new Game.PlayerDescription(PlayerId.P3, "P3", Game.PlayerDescription.PlayerKind.HUMAN),
+                new Game.PlayerDescription(PlayerId.P4, "P4", Game.PlayerDescription.PlayerKind.HUMAN)));
     }
 
     @Test
     void selectMoveReturnsValidIndex2Players() {
-        Game game = game2Players();
-        RandomGenerator rng = RandomGenerator.of("L64X128MixRandom");
-        MutableGameState mgs = setupGameWithFactories(game, rng);
+        var rng = RandomGeneratorFactory.getDefault().create(2026);
+        var mgs = new MutableGameState(ImmutableGameState.initial(game2P()));
+        mgs.fillFactories(rng);
 
-        short[] moves = new short[Move.MAX_MOVES];
-        int movesCount = mgs.validMoves(moves);
+        var moves = new short[Move.MAX_MOVES];
+        var count = mgs.validMoves(moves);
+        assertTrue(count > 0);
 
-        if (movesCount > 0) {
-            int index = HeuristicMoveSelector.selectMove(rng, mgs, moves, movesCount);
-            assertTrue(index >= 0 && index < movesCount);
-        }
+        var index = HeuristicMoveSelector.selectMove(rng, mgs, moves, count);
+        assertTrue(index >= 0 && index < count);
     }
 
     @Test
     void selectMoveReturnsValidIndex4Players() {
-        Game game = game4Players();
-        RandomGenerator rng = RandomGenerator.of("L64X128MixRandom");
-        MutableGameState mgs = setupGameWithFactories(game, rng);
+        var rng = RandomGeneratorFactory.getDefault().create(2026);
+        var mgs = new MutableGameState(ImmutableGameState.initial(game4P()));
+        mgs.fillFactories(rng);
 
-        short[] moves = new short[Move.MAX_MOVES];
-        int movesCount = mgs.validMoves(moves);
+        var moves = new short[Move.MAX_MOVES];
+        var count = mgs.validMoves(moves);
+        assertTrue(count > 0);
 
-        if (movesCount > 0) {
-            int index = HeuristicMoveSelector.selectMove(rng, mgs, moves, movesCount);
-            assertTrue(index >= 0 && index < movesCount);
+        var index = HeuristicMoveSelector.selectMove(rng, mgs, moves, count);
+        assertTrue(index >= 0 && index < count);
+    }
+
+    @Test
+    void selectMoveWithSingleMoveAlwaysReturns0() {
+        var rng = RandomGeneratorFactory.getDefault().create(2026);
+        var mgs = new MutableGameState(ImmutableGameState.initial(game2P()));
+        mgs.fillFactories(rng);
+
+        var allMoves = new short[Move.MAX_MOVES];
+        var count = mgs.validMoves(allMoves);
+        assertTrue(count > 0);
+
+        var singleMove = new short[Move.MAX_MOVES];
+        singleMove[0] = allMoves[0];
+        for (int i = 0; i < 100; i++)
+            assertEquals(0, HeuristicMoveSelector.selectMove(rng, mgs, singleMove, 1));
+    }
+
+    @Test
+    void selectMoveNeverReturnsOutOfBoundsOver500Calls() {
+        var rng = RandomGeneratorFactory.getDefault().create(2026);
+        var mgs = new MutableGameState(ImmutableGameState.initial(game2P()));
+        mgs.fillFactories(rng);
+
+        var moves = new short[Move.MAX_MOVES];
+        var count = mgs.validMoves(moves);
+        assertTrue(count > 0);
+
+        for (int i = 0; i < 500; i++) {
+            var index = HeuristicMoveSelector.selectMove(rng, mgs, moves, count);
+            assertTrue(index >= 0, "Index should be >= 0, got " + index);
+            assertTrue(index < count, "Index should be < " + count + ", got " + index);
         }
     }
 
     @Test
-    void selectMoveWithSingleMoveReturns0() {
-        Game game = game2Players();
-        RandomGenerator rng = RandomGenerator.of("L64X128MixRandom");
-        MutableGameState mgs = setupGameWithFactories(game, rng);
+    void selectMoveIsDeterministicWithSameSeed() {
+        var rng1 = RandomGeneratorFactory.getDefault().create(2026);
+        var rng2 = RandomGeneratorFactory.getDefault().create(2026);
+        var mgs1 = new MutableGameState(ImmutableGameState.initial(game2P()));
+        var mgs2 = new MutableGameState(ImmutableGameState.initial(game2P()));
+        mgs1.fillFactories(rng1);
+        mgs2.fillFactories(rng2);
 
-        short[] moves = new short[Move.MAX_MOVES];
-        int movesCount = mgs.validMoves(moves);
-
-        if (movesCount > 0) {
-            short[] singleMove = new short[Move.MAX_MOVES];
-            singleMove[0] = moves[0];
-            int index = HeuristicMoveSelector.selectMove(rng, mgs, singleMove, 1);
-            assertEquals(0, index);
-        }
-    }
-
-    @Test
-    void selectMoveNeverReturnsOutOfBounds() {
-        Game game = game2Players();
-        RandomGenerator rng = RandomGenerator.of("L64X128MixRandom");
-        MutableGameState mgs = setupGameWithFactories(game, rng);
-
-        short[] moves = new short[Move.MAX_MOVES];
-        int movesCount = mgs.validMoves(moves);
-
-        if (movesCount > 0) {
-            for (int i = 0; i < 500; i++) {
-                int index = HeuristicMoveSelector.selectMove(rng, mgs, moves, movesCount);
-                assertTrue(index >= 0, "Index should be >= 0, got " + index);
-                assertTrue(index < movesCount, "Index should be < " + movesCount + ", got " + index);
-            }
-        }
-    }
-
-    @Test
-    void selectMoveDeterministicWithSameSeed() {
-        Game game = game2Players();
-
-        MutableGameState mgs1 = setupGameWithFactories(game, RandomGenerator.of("L64X128MixRandom"));
-        MutableGameState mgs2 = setupGameWithFactories(game, RandomGenerator.of("L64X128MixRandom"));
-
-        short[] moves1 = new short[Move.MAX_MOVES];
-        short[] moves2 = new short[Move.MAX_MOVES];
-        int count1 = mgs1.validMoves(moves1);
-        int count2 = mgs2.validMoves(moves2);
-
+        var moves1 = new short[Move.MAX_MOVES];
+        var moves2 = new short[Move.MAX_MOVES];
+        var count1 = mgs1.validMoves(moves1);
+        var count2 = mgs2.validMoves(moves2);
         assertEquals(count1, count2);
 
-        if (count1 > 0) {
-            RandomGenerator rng1 = RandomGenerator.of("L64X128MixRandom");
-            RandomGenerator rng2 = RandomGenerator.of("L64X128MixRandom");
-
-            int idx1 = HeuristicMoveSelector.selectMove(rng1, mgs1, moves1, count1);
-            int idx2 = HeuristicMoveSelector.selectMove(rng2, mgs2, moves2, count2);
-            assertEquals(idx1, idx2);
-        }
+        var idx1 = HeuristicMoveSelector.selectMove(rng1, mgs1, moves1, count1);
+        var idx2 = HeuristicMoveSelector.selectMove(rng2, mgs2, moves2, count2);
+        assertEquals(idx1, idx2);
     }
 
     @Test
     void selectMovePrefersPatternLinesOverFloor() {
-        Game game = game2Players();
-        RandomGenerator rng = RandomGenerator.of("L64X128MixRandom");
-        MutableGameState mgs = setupGameWithFactories(game, rng);
+        var rng = RandomGeneratorFactory.getDefault().create(2026);
+        var mgs = new MutableGameState(ImmutableGameState.initial(game2P()));
+        mgs.fillFactories(rng);
 
-        short[] moves = new short[Move.MAX_MOVES];
-        int movesCount = mgs.validMoves(moves);
+        var moves = new short[Move.MAX_MOVES];
+        var count = mgs.validMoves(moves);
+        assertTrue(count > 0);
 
-        if (movesCount > 0) {
-            int patternCount = 0;
-            int trials = 1000;
-            for (int t = 0; t < trials; t++) {
-                int index = HeuristicMoveSelector.selectMove(rng, mgs, moves, movesCount);
-                Move move = Move.ofPacked(moves[index]);
-                if (move.destination() instanceof TileDestination.Pattern)
-                    patternCount++;
-            }
-            assertTrue(patternCount > trials / 2,
-                    "Expected pattern moves to be preferred, got " + patternCount + "/" + trials);
+        var patternCount = 0;
+        var trials = 1000;
+        for (int t = 0; t < trials; t++) {
+            var index = HeuristicMoveSelector.selectMove(rng, mgs, moves, count);
+            var move = Move.ofPacked(moves[index]);
+            if (move.destination() instanceof TileDestination.Pattern)
+                patternCount++;
         }
+        assertTrue(patternCount > trials / 2,
+                "Expected pattern moves to be preferred, got " + patternCount + "/" + trials);
     }
 
     @Test
-    void selectMoveWorksAfterSeveralRounds() {
-        Game game = game2Players();
-        RandomGenerator rng = RandomGenerator.of("L64X128MixRandom");
-        ImmutableGameState state = ImmutableGameState.initial(game);
-        MutableGameState mgs = new MutableGameState(state);
-        short[] moves = new short[Move.MAX_MOVES];
+    void selectMoveWorksCorrectlyDuringMultiRoundGame() {
+        var rng = RandomGeneratorFactory.getDefault().create(2026);
+        var mgs = new MutableGameState(ImmutableGameState.initial(game2P()));
+        var moves = new short[Move.MAX_MOVES];
 
-        // Play a few rounds
         for (int round = 0; round < 3 && !mgs.isGameOver(); round++) {
             mgs.fillFactories(rng);
             while (!mgs.isRoundOver()) {
-                int movesCount = mgs.validMoves(moves);
-                if (movesCount == 0) break;
-                int index = HeuristicMoveSelector.selectMove(rng, mgs, moves, movesCount);
-                assertTrue(index >= 0 && index < movesCount);
+                var count = mgs.validMoves(moves);
+                assertTrue(count > 0);
+                var index = HeuristicMoveSelector.selectMove(rng, mgs, moves, count);
+                assertTrue(index >= 0 && index < count);
                 mgs.registerMove(moves[index]);
             }
             mgs.endRound();
@@ -170,17 +149,35 @@ public class MyHeuristicMoveSelectorTest {
     }
 
     @Test
-    void selectMoveWithUniqueValidMoves() {
-        Game game = game2Players();
-        RandomGenerator rng = RandomGenerator.of("L64X128MixRandom");
-        MutableGameState mgs = setupGameWithFactories(game, rng);
+    void selectMoveWorksWithUniqueValidMoves() {
+        var rng = RandomGeneratorFactory.getDefault().create(2026);
+        var mgs = new MutableGameState(ImmutableGameState.initial(game2P()));
+        mgs.fillFactories(rng);
 
-        short[] moves = new short[Move.MAX_MOVES];
-        int movesCount = mgs.uniqueValidMoves(moves);
+        var moves = new short[Move.MAX_MOVES];
+        var count = mgs.uniqueValidMoves(moves);
+        assertTrue(count > 0);
 
-        if (movesCount > 0) {
-            int index = HeuristicMoveSelector.selectMove(rng, mgs, moves, movesCount);
-            assertTrue(index >= 0 && index < movesCount);
+        var index = HeuristicMoveSelector.selectMove(rng, mgs, moves, count);
+        assertTrue(index >= 0 && index < count);
+    }
+
+    @Test
+    void selectMoveProducesVariedResultsAcrossSeeds() {
+        var mgs = new MutableGameState(ImmutableGameState.initial(game2P()));
+        var rngSetup = RandomGeneratorFactory.getDefault().create(2026);
+        mgs.fillFactories(rngSetup);
+
+        var moves = new short[Move.MAX_MOVES];
+        var count = mgs.validMoves(moves);
+        if (count <= 1) return;
+
+        var seenIndices = new java.util.HashSet<Integer>();
+        for (int seed = 0; seed < 100; seed++) {
+            var rng = RandomGeneratorFactory.getDefault().create(seed);
+            seenIndices.add(HeuristicMoveSelector.selectMove(rng, mgs, moves, count));
         }
+        assertTrue(seenIndices.size() > 1,
+                "Expected varied results across seeds, got only " + seenIndices.size() + " distinct indices");
     }
 }

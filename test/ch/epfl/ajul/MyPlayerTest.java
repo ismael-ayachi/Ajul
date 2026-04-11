@@ -6,43 +6,41 @@ import ch.epfl.ajul.mcts.HeuristicMoveSelector;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
-import java.util.random.RandomGenerator;
+import java.util.random.RandomGeneratorFactory;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class MyPlayerTest {
+class MyPlayerTest {
 
-    private static Game game2Players() {
+    static Game game2P() {
         return new Game(List.of(
-                new Game.PlayerDescription(PlayerId.P1, "Alice", Game.PlayerDescription.PlayerKind.HUMAN),
-                new Game.PlayerDescription(PlayerId.P2, "Bob", Game.PlayerDescription.PlayerKind.AI)
-        ));
+                new Game.PlayerDescription(PlayerId.P1, "P1", Game.PlayerDescription.PlayerKind.HUMAN),
+                new Game.PlayerDescription(PlayerId.P2, "P2", Game.PlayerDescription.PlayerKind.HUMAN)));
     }
 
     @Test
     void playerCanBeImplementedAsLambda() {
         Player player = (gameState) -> {
-            short[] moves = new short[Move.MAX_MOVES];
-            int count = gameState.validMoves(moves);
+            var moves = new short[Move.MAX_MOVES];
+            var count = gameState.validMoves(moves);
             return Move.ofPacked(moves[0]);
         };
         assertNotNull(player);
     }
 
     @Test
-    void playerLambdaReturnsValidMove() {
-        Game game = game2Players();
-        RandomGenerator rng = RandomGenerator.of("L64X128MixRandom");
-        MutableGameState mgs = new MutableGameState(ImmutableGameState.initial(game));
+    void playerLambdaReturnsNonNullMove() {
+        var rng = RandomGeneratorFactory.getDefault().create(2026);
+        var mgs = new MutableGameState(ImmutableGameState.initial(game2P()));
         mgs.fillFactories(rng);
 
         Player player = (gameState) -> {
-            short[] moves = new short[Move.MAX_MOVES];
-            int count = gameState.validMoves(moves);
+            var moves = new short[Move.MAX_MOVES];
+            var count = gameState.validMoves(moves);
             return Move.ofPacked(moves[0]);
         };
 
-        Move move = player.nextMove(mgs);
+        var move = player.nextMove(mgs);
         assertNotNull(move);
         assertNotNull(move.source());
         assertNotNull(move.tileColor());
@@ -51,49 +49,44 @@ public class MyPlayerTest {
 
     @Test
     void playerWithHeuristicReturnsValidMove() {
-        Game game = game2Players();
-        RandomGenerator rng = RandomGenerator.of("L64X128MixRandom");
-        MutableGameState mgs = new MutableGameState(ImmutableGameState.initial(game));
+        var rng = RandomGeneratorFactory.getDefault().create(2026);
+        var mgs = new MutableGameState(ImmutableGameState.initial(game2P()));
         mgs.fillFactories(rng);
 
-        Player heuristicPlayer = (gameState) -> {
-            short[] moves = new short[Move.MAX_MOVES];
-            int count = gameState.uniqueValidMoves(moves);
-            int index = HeuristicMoveSelector.selectMove(rng, gameState, moves, count);
+        Player player = (gameState) -> {
+            var moves = new short[Move.MAX_MOVES];
+            var count = gameState.uniqueValidMoves(moves);
+            var index = HeuristicMoveSelector.selectMove(rng, gameState, moves, count);
             return Move.ofPacked(moves[index]);
         };
 
-        Move move = heuristicPlayer.nextMove(mgs);
-        assertNotNull(move);
+        assertNotNull(player.nextMove(mgs));
     }
 
     @Test
-    void playerCanPlayFullGame() {
-        Game game = game2Players();
-        RandomGenerator rng = RandomGenerator.of("L64X128MixRandom");
-        MutableGameState mgs = new MutableGameState(ImmutableGameState.initial(game));
+    void twoRandomPlayersCanPlayFullGame() {
+        var rng = RandomGeneratorFactory.getDefault().create(2026);
+        var mgs = new MutableGameState(ImmutableGameState.initial(game2P()));
 
         Player p1 = (gameState) -> {
-            short[] moves = new short[Move.MAX_MOVES];
-            int count = gameState.validMoves(moves);
+            var moves = new short[Move.MAX_MOVES];
+            var count = gameState.validMoves(moves);
             return Move.ofPacked(moves[rng.nextInt(count)]);
         };
-
         Player p2 = (gameState) -> {
-            short[] moves = new short[Move.MAX_MOVES];
-            int count = gameState.validMoves(moves);
+            var moves = new short[Move.MAX_MOVES];
+            var count = gameState.validMoves(moves);
             return Move.ofPacked(moves[rng.nextInt(count)]);
         };
-
         Player[] players = {p1, p2};
-        int maxRounds = 20;
-        int roundsPlayed = 0;
 
+        var maxRounds = 20;
+        var roundsPlayed = 0;
         while (!mgs.isGameOver() && roundsPlayed < maxRounds) {
             mgs.fillFactories(rng);
             while (!mgs.isRoundOver()) {
-                Player currentPlayer = players[mgs.currentPlayerId().ordinal()];
-                Move move = currentPlayer.nextMove(mgs);
+                var current = players[mgs.currentPlayerId().ordinal()];
+                var move = current.nextMove(mgs);
                 assertNotNull(move);
                 mgs.registerMove(move.packed());
             }
@@ -102,41 +95,62 @@ public class MyPlayerTest {
         }
         mgs.endGame();
 
-        int p1Points = PkPlayerStates.points(mgs.pkPlayerStates(), PlayerId.P1);
-        int p2Points = PkPlayerStates.points(mgs.pkPlayerStates(), PlayerId.P2);
-        assertTrue(p1Points >= 0);
-        assertTrue(p2Points >= 0);
+        assertTrue(PkPlayerStates.points(mgs.pkPlayerStates(), PlayerId.P1) >= 0);
+        assertTrue(PkPlayerStates.points(mgs.pkPlayerStates(), PlayerId.P2) >= 0);
     }
 
     @Test
     void differentPlayerImplementationsReturnDifferentMoves() {
-        Game game = game2Players();
-        RandomGenerator rng = RandomGenerator.of("L64X128MixRandom");
-        MutableGameState mgs = new MutableGameState(ImmutableGameState.initial(game));
+        var rng = RandomGeneratorFactory.getDefault().create(2026);
+        var mgs = new MutableGameState(ImmutableGameState.initial(game2P()));
         mgs.fillFactories(rng);
 
-        // Player that always picks first move
-        Player firstMovePlayer = (gameState) -> {
-            short[] moves = new short[Move.MAX_MOVES];
-            int count = gameState.validMoves(moves);
+        Player firstPlayer = (gameState) -> {
+            var moves = new short[Move.MAX_MOVES];
+            var count = gameState.validMoves(moves);
             return Move.ofPacked(moves[0]);
         };
-
-        // Player that always picks last move
-        Player lastMovePlayer = (gameState) -> {
-            short[] moves = new short[Move.MAX_MOVES];
-            int count = gameState.validMoves(moves);
+        Player lastPlayer = (gameState) -> {
+            var moves = new short[Move.MAX_MOVES];
+            var count = gameState.validMoves(moves);
             return Move.ofPacked(moves[count - 1]);
         };
 
-        Move firstMove = firstMovePlayer.nextMove(mgs);
-        Move lastMove = lastMovePlayer.nextMove(mgs);
+        var moves = new short[Move.MAX_MOVES];
+        var count = mgs.validMoves(moves);
+        if (count > 1)
+            assertNotEquals(firstPlayer.nextMove(mgs), lastPlayer.nextMove(mgs));
+    }
 
-        // With multiple valid moves, first and last should differ
-        short[] moves = new short[Move.MAX_MOVES];
-        int count = mgs.validMoves(moves);
-        if (count > 1) {
-            assertNotEquals(firstMove, lastMove);
+    @Test
+    void heuristicPlayersCompleteGameWithPositiveScores() {
+        var rng = RandomGeneratorFactory.getDefault().create(42);
+        var mgs = new MutableGameState(ImmutableGameState.initial(game2P()));
+
+        Player heuristic = (gameState) -> {
+            var moves = new short[Move.MAX_MOVES];
+            var count = gameState.validMoves(moves);
+            var index = HeuristicMoveSelector.selectMove(rng, gameState, moves, count);
+            return Move.ofPacked(moves[index]);
+        };
+        Player[] players = {heuristic, heuristic};
+
+        var maxRounds = 20;
+        var roundsPlayed = 0;
+        while (!mgs.isGameOver() && roundsPlayed < maxRounds) {
+            mgs.fillFactories(rng);
+            while (!mgs.isRoundOver()) {
+                var current = players[mgs.currentPlayerId().ordinal()];
+                mgs.registerMove(current.nextMove(mgs).packed());
+            }
+            mgs.endRound();
+            roundsPlayed++;
         }
+        mgs.endGame();
+
+        var p1Pts = PkPlayerStates.points(mgs.pkPlayerStates(), PlayerId.P1);
+        var p2Pts = PkPlayerStates.points(mgs.pkPlayerStates(), PlayerId.P2);
+        assertTrue(p1Pts > 0 || p2Pts > 0,
+                "At least one player should have positive points after a full game");
     }
 }

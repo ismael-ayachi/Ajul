@@ -18,55 +18,36 @@ public final class HeuristicMoveSelector {
                                  short[] packedMoveArray,
                                  int validMoves) {
 
+        //Revoir le code en utilisant l'échantillonage par réservoir
         int index1 = 0, index2 = 0 , index3 = 0;
-        int moveIndex = 0;
         int[] subMoves1 = new int[validMoves];
         int[] subMoves2 = new int[validMoves];
         int[] subMoves3 = new int[validMoves];
-        for (short move: packedMoveArray){
 
-            TileSource sourceMove = PkMove.source(move);
-            TileKind colorMove = PkMove.color(move);
+        int pattern = PkPlayerStates.pkPatterns(gameState.pkPlayerStates(), gameState.currentPlayerId());
+        for (int i = 0; i < validMoves; i++) {
+            var color = PkMove.color(packedMoveArray[i]);
+            var destination = PkMove.destination(packedMoveArray[i]);
+            var source = PkMove.source(packedMoveArray[i]);
 
-            if (PkMove.destination(move) instanceof TileDestination.Pattern){
-                TileDestination patternMove = PkMove.destination(move);
-                int pattern = PkPlayerStates.pkPatterns(gameState.pkPlayerStates(), gameState.currentPlayerId());
-                int remainingTiles =
-                        patternMove.capacity() - PkPatterns.size(pattern, (TileDestination.Pattern) patternMove);
-                int tilesMoveCount = PkTileSet.countOf(gameState.pkTileSources().get(sourceMove.index()), colorMove);
-                if (tilesMoveCount == remainingTiles) {
-                    subMoves1[index1] = moveIndex;
-                    index1++;
+            if (destination instanceof TileDestination.Pattern line) {
+                int remaining = line.capacity() - PkPatterns.size(pattern, line);
+                int tileCount = PkTileSet.countOf(
+                        gameState.pkTileSources().get(source.index()), color);
+                if (tileCount == remaining) {
+                    subMoves1[index1++] = i;
+                } else {
+                    subMoves2[index2++] = i;
                 }
-                else if (tilesMoveCount < remainingTiles) {
-                    subMoves2[index2] = moveIndex;
-                    index2++;
-                }
+            } else {
+                subMoves3[index3++] = i;
             }
-            else {
-                subMoves3[index3] = moveIndex;
-                index3++;
-            }
-            moveIndex++;
         }
 
-        if (subMoves1.length != 0) {
-            int selectedIndex = subMoves1[randomGenerator.nextInt(0, index1 + 1 )];
-            if (selectedIndex >= 0 && selectedIndex < validMoves)
-                return selectedIndex;
-        }
-        else if (subMoves2.length != 0) {
-            int selectedIndex = subMoves2[randomGenerator.nextInt(0, index2 + 1)];
-            if (selectedIndex >= 0 && selectedIndex < validMoves)
-                return selectedIndex;
-        }
-
-        return subMoves3[randomGenerator.nextInt(0, index3 + 1)];
+        if (index1 > 0) return subMoves1[randomGenerator.nextInt(index1)];
+        if (index2 > 0) return subMoves2[randomGenerator.nextInt(index2)];
+        return subMoves3[randomGenerator.nextInt(index3)];
     }
 
-
-    private static boolean isIndexValid (int i, int[] packedMoveArray){
-        return i >= 0 && i < packedMoveArray.length;
-    }
 
 }

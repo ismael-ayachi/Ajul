@@ -5,140 +5,124 @@ import ch.epfl.ajul.gamestate.packed.*;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
-import java.util.random.RandomGenerator;
+import java.util.random.RandomGeneratorFactory;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class MyRankComputerTest {
+class MyRankComputerTest {
 
-    private static Game game2Players() {
+    static Game game2P() {
         return new Game(List.of(
-                new Game.PlayerDescription(PlayerId.P1, "Alice", Game.PlayerDescription.PlayerKind.HUMAN),
-                new Game.PlayerDescription(PlayerId.P2, "Bob", Game.PlayerDescription.PlayerKind.AI)
-        ));
+                new Game.PlayerDescription(PlayerId.P1, "P1", Game.PlayerDescription.PlayerKind.HUMAN),
+                new Game.PlayerDescription(PlayerId.P2, "P2", Game.PlayerDescription.PlayerKind.HUMAN)));
     }
 
-    private static Game game4Players() {
+    static Game game3P() {
         return new Game(List.of(
-                new Game.PlayerDescription(PlayerId.P1, "Alice", Game.PlayerDescription.PlayerKind.HUMAN),
-                new Game.PlayerDescription(PlayerId.P2, "Bob", Game.PlayerDescription.PlayerKind.AI),
-                new Game.PlayerDescription(PlayerId.P3, "Charlie", Game.PlayerDescription.PlayerKind.AI),
-                new Game.PlayerDescription(PlayerId.P4, "Diana", Game.PlayerDescription.PlayerKind.AI)
-        ));
+                new Game.PlayerDescription(PlayerId.P1, "P1", Game.PlayerDescription.PlayerKind.HUMAN),
+                new Game.PlayerDescription(PlayerId.P2, "P2", Game.PlayerDescription.PlayerKind.HUMAN),
+                new Game.PlayerDescription(PlayerId.P3, "P3", Game.PlayerDescription.PlayerKind.HUMAN)));
+    }
+
+    static Game game4P() {
+        return new Game(List.of(
+                new Game.PlayerDescription(PlayerId.P1, "P1", Game.PlayerDescription.PlayerKind.HUMAN),
+                new Game.PlayerDescription(PlayerId.P2, "P2", Game.PlayerDescription.PlayerKind.HUMAN),
+                new Game.PlayerDescription(PlayerId.P3, "P3", Game.PlayerDescription.PlayerKind.HUMAN),
+                new Game.PlayerDescription(PlayerId.P4, "P4", Game.PlayerDescription.PlayerKind.HUMAN)));
     }
 
     @Test
-    void allPlayersExAequo2Players() {
-        Game game = game2Players();
-        MutableGameState mgs = new MutableGameState(ImmutableGameState.initial(game));
-        int[] ranks = new int[2];
+    void allPlayersExAequo2PlayersAllRank0() {
+        var mgs = new MutableGameState(ImmutableGameState.initial(game2P()));
+        var ranks = new int[2];
         RankComputer.playersRank(mgs, ranks);
         assertEquals(0, ranks[0]);
         assertEquals(0, ranks[1]);
     }
 
     @Test
-    void allPlayersExAequo4Players() {
-        Game game = game4Players();
-        MutableGameState mgs = new MutableGameState(ImmutableGameState.initial(game));
-        int[] ranks = new int[4];
+    void allPlayersExAequo4PlayersAllRank0() {
+        var mgs = new MutableGameState(ImmutableGameState.initial(game4P()));
+        var ranks = new int[4];
         RankComputer.playersRank(mgs, ranks);
-        for (int rank : ranks) {
+        for (var rank : ranks)
             assertEquals(0, rank);
-        }
     }
 
     @Test
-    void ranksAlwaysBetween0AndPlayerCount() {
-        Game game = game4Players();
-        MutableGameState mgs = new MutableGameState(ImmutableGameState.initial(game));
-        int[] ranks = new int[4];
+    void ranksAreBetween0AndPlayerCountExclusive2Players() {
+        var rng = RandomGeneratorFactory.getDefault().create(2026);
+        var mgs = new MutableGameState(ImmutableGameState.initial(game2P()));
+        playFullGame(mgs, rng);
+
+        var ranks = new int[2];
         RankComputer.playersRank(mgs, ranks);
-        for (int rank : ranks) {
+        for (var rank : ranks)
+            assertTrue(rank >= 0 && rank < 2);
+    }
+
+    @Test
+    void ranksAreBetween0AndPlayerCountExclusive4Players() {
+        var rng = RandomGeneratorFactory.getDefault().create(2026);
+        var mgs = new MutableGameState(ImmutableGameState.initial(game4P()));
+        playFullGame(mgs, rng);
+
+        var ranks = new int[4];
+        RankComputer.playersRank(mgs, ranks);
+        for (var rank : ranks)
             assertTrue(rank >= 0 && rank < 4);
-        }
     }
 
     @Test
-    void atLeastOnePlayerHasRank0() {
-        Game game = game4Players();
-        MutableGameState mgs = new MutableGameState(ImmutableGameState.initial(game));
-        int[] ranks = new int[4];
+    void atLeastOnePlayerHasRank0After2PlayerGame() {
+        var rng = RandomGeneratorFactory.getDefault().create(2026);
+        var mgs = new MutableGameState(ImmutableGameState.initial(game2P()));
+        playFullGame(mgs, rng);
+
+        var ranks = new int[2];
         RankComputer.playersRank(mgs, ranks);
-        boolean hasRank0 = false;
-        for (int rank : ranks) {
-            if (rank == 0) hasRank0 = true;
-        }
-        assertTrue(hasRank0);
-    }
-
-    @Test
-    void ranksAfterFullGame2Players() {
-        Game game = game2Players();
-        MutableGameState mgs = new MutableGameState(ImmutableGameState.initial(game));
-        RandomGenerator rng = RandomGenerator.of("L64X128MixRandom");
-        short[] moves = new short[Move.MAX_MOVES];
-
-        int maxRounds = 20;
-        int roundsPlayed = 0;
-        while (!mgs.isGameOver() && roundsPlayed < maxRounds) {
-            mgs.fillFactories(rng);
-            while (!mgs.isRoundOver()) {
-                int count = mgs.validMoves(moves);
-                if (count == 0) break;
-                mgs.registerMove(moves[rng.nextInt(count)]);
-            }
-            mgs.endRound();
-            roundsPlayed++;
-        }
-        mgs.endGame();
-
-        int[] ranks = new int[2];
-        RankComputer.playersRank(mgs, ranks);
-
-        assertTrue(ranks[0] >= 0 && ranks[0] < 2);
-        assertTrue(ranks[1] >= 0 && ranks[1] < 2);
         assertTrue(ranks[0] == 0 || ranks[1] == 0);
     }
 
     @Test
-    void ranksAfterFullGame4Players() {
-        Game game = game4Players();
-        MutableGameState mgs = new MutableGameState(ImmutableGameState.initial(game));
-        RandomGenerator rng = RandomGenerator.of("L64X128MixRandom");
-        short[] moves = new short[Move.MAX_MOVES];
+    void atLeastOnePlayerHasRank0After4PlayerGame() {
+        var rng = RandomGeneratorFactory.getDefault().create(2026);
+        var mgs = new MutableGameState(ImmutableGameState.initial(game4P()));
+        playFullGame(mgs, rng);
 
-        int maxRounds = 20;
-        int roundsPlayed = 0;
-        while (!mgs.isGameOver() && roundsPlayed < maxRounds) {
-            mgs.fillFactories(rng);
-            while (!mgs.isRoundOver()) {
-                int count = mgs.validMoves(moves);
-                if (count == 0) break;
-                mgs.registerMove(moves[rng.nextInt(count)]);
-            }
-            mgs.endRound();
-            roundsPlayed++;
-        }
-        mgs.endGame();
+        var ranks = new int[4];
+        RankComputer.playersRank(mgs, ranks);
+        var hasRank0 = false;
+        for (var rank : ranks)
+            if (rank == 0) hasRank0 = true;
+        assertTrue(hasRank0);
+    }
 
-        int[] ranks = new int[4];
+    @Test
+    void playerWithMorePointsHasBetterRank() {
+        var rng = RandomGeneratorFactory.getDefault().create(2026);
+        var mgs = new MutableGameState(ImmutableGameState.initial(game2P()));
+        playFullGame(mgs, rng);
+
+        var p1Pts = PkPlayerStates.points(mgs.pkPlayerStates(), PlayerId.P1);
+        var p2Pts = PkPlayerStates.points(mgs.pkPlayerStates(), PlayerId.P2);
+
+        var ranks = new int[2];
         RankComputer.playersRank(mgs, ranks);
 
-        for (int rank : ranks) {
-            assertTrue(rank >= 0 && rank < 4);
+        if (p1Pts > p2Pts) {
+            assertTrue(ranks[0] < ranks[1]);
+        } else if (p2Pts > p1Pts) {
+            assertTrue(ranks[1] < ranks[0]);
         }
     }
 
     @Test
     void exAequoPlayersShareSameRank() {
-        // After a full game, if two players have the same points
-        // and same number of full rows, they should share the same rank
-        Game game = game4Players();
-        MutableGameState mgs = new MutableGameState(ImmutableGameState.initial(game));
-
-        // All players at 0 points, 0 full rows -> all ex aequo at rank 0
-        int[] ranks = new int[4];
+        // Initial state: all 0 points, 0 full rows
+        var mgs = new MutableGameState(ImmutableGameState.initial(game4P()));
+        var ranks = new int[4];
         RankComputer.playersRank(mgs, ranks);
         assertEquals(ranks[0], ranks[1]);
         assertEquals(ranks[1], ranks[2]);
@@ -146,38 +130,76 @@ public class MyRankComputerTest {
     }
 
     @Test
-    void noPlayerHasRank1WhenAllExAequo() {
-        // If all players are ex aequo, no one should have rank 1, 2, or 3
-        Game game = game4Players();
-        MutableGameState mgs = new MutableGameState(ImmutableGameState.initial(game));
-        int[] ranks = new int[4];
+    void noRank1WhenAllPlayersExAequo() {
+        var mgs = new MutableGameState(ImmutableGameState.initial(game4P()));
+        var ranks = new int[4];
         RankComputer.playersRank(mgs, ranks);
-        for (int rank : ranks) {
-            assertEquals(0, rank);
+        for (var rank : ranks)
+            assertNotEquals(1, rank);
+    }
+
+    @Test
+    void ranksConsistentAcrossDifferentSeeds() {
+        for (int seed = 0; seed < 10; seed++) {
+            var rng = RandomGeneratorFactory.getDefault().create(seed);
+            var mgs = new MutableGameState(ImmutableGameState.initial(game2P()));
+            playFullGame(mgs, rng);
+
+            var ranks = new int[2];
+            RankComputer.playersRank(mgs, ranks);
+
+            assertTrue(ranks[0] >= 0 && ranks[0] < 2);
+            assertTrue(ranks[1] >= 0 && ranks[1] < 2);
+            assertTrue(ranks[0] == 0 || ranks[1] == 0);
         }
     }
 
     @Test
-    void rankComputerEnumExample() {
-        // From the spec: P1=45pts/3rows, P2=55pts/2rows, P3=55pts/1row, P4=55pts/2rows
-        // Expected: P2=0, P4=0, P3=2, P1=3
-        // This test requires setting up specific game states which may be complex
-        // It serves as a specification reference
+    void ranksWorkFor3PlayerGame() {
+        var rng = RandomGeneratorFactory.getDefault().create(2026);
+        var mgs = new MutableGameState(ImmutableGameState.initial(game3P()));
+        playFullGame(mgs, rng);
+
+        var ranks = new int[3];
+        RankComputer.playersRank(mgs, ranks);
+
+        for (var rank : ranks)
+            assertTrue(rank >= 0 && rank < 3);
+
+        var hasRank0 = false;
+        for (var rank : ranks)
+            if (rank == 0) hasRank0 = true;
+        assertTrue(hasRank0);
     }
 
     @Test
-    void winnerHasRank0AfterGame() {
-        Game game = game2Players();
-        MutableGameState mgs = new MutableGameState(ImmutableGameState.initial(game));
-        RandomGenerator rng = RandomGenerator.of("L64X128MixRandom");
-        short[] moves = new short[Move.MAX_MOVES];
+    void winnerHasRank0AndLoserHasRank1In2PlayerGame() {
+        var rng = RandomGeneratorFactory.getDefault().create(42);
+        var mgs = new MutableGameState(ImmutableGameState.initial(game2P()));
+        playFullGame(mgs, rng);
 
-        int maxRounds = 20;
-        int roundsPlayed = 0;
+        var p1Pts = PkPlayerStates.points(mgs.pkPlayerStates(), PlayerId.P1);
+        var p2Pts = PkPlayerStates.points(mgs.pkPlayerStates(), PlayerId.P2);
+
+        var ranks = new int[2];
+        RankComputer.playersRank(mgs, ranks);
+
+        if (p1Pts != p2Pts) {
+            var winnerRank = p1Pts > p2Pts ? ranks[0] : ranks[1];
+            var loserRank = p1Pts > p2Pts ? ranks[1] : ranks[0];
+            assertEquals(0, winnerRank);
+            assertEquals(1, loserRank);
+        }
+    }
+
+    private static void playFullGame(MutableGameState mgs, java.util.random.RandomGenerator rng) {
+        var moves = new short[Move.MAX_MOVES];
+        var maxRounds = 20;
+        var roundsPlayed = 0;
         while (!mgs.isGameOver() && roundsPlayed < maxRounds) {
             mgs.fillFactories(rng);
             while (!mgs.isRoundOver()) {
-                int count = mgs.validMoves(moves);
+                var count = mgs.validMoves(moves);
                 if (count == 0) break;
                 mgs.registerMove(moves[rng.nextInt(count)]);
             }
@@ -185,20 +207,5 @@ public class MyRankComputerTest {
             roundsPlayed++;
         }
         mgs.endGame();
-
-        int[] ranks = new int[2];
-        RankComputer.playersRank(mgs, ranks);
-
-        int p1Points = PkPlayerStates.points(mgs.pkPlayerStates(), PlayerId.P1);
-        int p2Points = PkPlayerStates.points(mgs.pkPlayerStates(), PlayerId.P2);
-
-        if (p1Points > p2Points) {
-            assertEquals(0, ranks[0]);
-        } else if (p2Points > p1Points) {
-            assertEquals(0, ranks[1]);
-        } else {
-            // Ex aequo on points, rank depends on full rows
-            assertEquals(ranks[0], ranks[1]); // may or may not be equal
-        }
     }
 }

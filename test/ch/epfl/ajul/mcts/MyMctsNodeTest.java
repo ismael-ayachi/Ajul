@@ -1,61 +1,173 @@
 package ch.epfl.ajul.mcts;
 
+import ch.epfl.ajul.*;
+import ch.epfl.ajul.gamestate.packed.*;
 import org.junit.jupiter.api.Test;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class MyMctsNodeTest {
+
     @Test
-    void mctsNodeNewRootIsCorrectlyInitialized() {
-        MctsNode root = MctsNode.newRoot();
-        assertEquals(1, root.gameCount(), "La racine doit commencer avec N=1");
-        assertEquals(0, root.totalPoints());
-        assertEquals(0.0, root.averagePoints(), 1e-9);
+    void newRootHasGameCount1() {
+        assertEquals(1, MctsNode.newRoot().gameCount());
     }
 
     @Test
-    void mctsNodeNewMoveNodeIsCorrectlyInitialized() {
-        int packedMove = 0b1010101010; // Un coup fictif sur 10 bits
-        MctsNode node = MctsNode.newMoveNode(packedMove);
-        assertEquals(packedMove, node.pkMove());
-        assertEquals(0, node.gameCount());
+    void newRootHasTotalPoints0() {
+        assertEquals(0, MctsNode.newRoot().totalPoints());
+    }
+
+    @Test
+    void newRootHasAveragePoints0() {
+        assertEquals(0.0, MctsNode.newRoot().averagePoints(), 1e-9);
+    }
+
+    @Test
+    void newMoveNodeHasGameCount0() {
+        var pkMove = PkMove.pack(TileSource.FACTORY_1, TileKind.Colored.A, TileDestination.PATTERN_1);
+        assertEquals(0, MctsNode.newMoveNode(pkMove).gameCount());
+    }
+
+    @Test
+    void newMoveNodeHasTotalPoints0() {
+        var pkMove = PkMove.pack(TileSource.FACTORY_1, TileKind.Colored.A, TileDestination.PATTERN_1);
+        assertEquals(0, MctsNode.newMoveNode(pkMove).totalPoints());
+    }
+
+    @Test
+    void newMoveNodeStoresPkMoveForAllColorAndPatternCombinations() {
+        for (var color : TileKind.Colored.ALL) {
+            for (var line : TileDestination.Pattern.ALL) {
+                var pkMove = PkMove.pack(TileSource.FACTORY_1, color, line);
+                assertEquals(pkMove, MctsNode.newMoveNode(pkMove).pkMove());
+            }
+        }
+    }
+
+    @Test
+    void newMoveNodeStoresPkMoveForAllSources() {
+        for (var source : TileSource.ALL) {
+            var pkMove = PkMove.pack(source, TileKind.Colored.A, TileDestination.PATTERN_1);
+            assertEquals(pkMove, MctsNode.newMoveNode(pkMove).pkMove());
+        }
+    }
+
+    @Test
+    void newMoveNodeStoresPkMoveForFloorDestination() {
+        var pkMove = PkMove.pack(TileSource.CENTER_AREA, TileKind.Colored.E, TileDestination.FLOOR);
+        assertEquals(pkMove, MctsNode.newMoveNode(pkMove).pkMove());
+    }
+
+    @Test
+    void registerEvaluationOnceGivesGameCount1() {
+        var node = MctsNode.newMoveNode(PkMove.pack(TileSource.FACTORY_1, TileKind.Colored.B, TileDestination.PATTERN_2));
+        node.registerEvaluation(50);
+        assertEquals(1, node.gameCount());
+    }
+
+    @Test
+    void registerEvaluationTwiceGivesGameCount2() {
+        var node = MctsNode.newMoveNode(PkMove.pack(TileSource.FACTORY_1, TileKind.Colored.B, TileDestination.PATTERN_2));
+        node.registerEvaluation(50);
+        node.registerEvaluation(30);
+        assertEquals(2, node.gameCount());
+    }
+
+    @Test
+    void registerEvaluationOnceGivesCorrectTotalPoints() {
+        var node = MctsNode.newMoveNode(PkMove.pack(TileSource.FACTORY_1, TileKind.Colored.B, TileDestination.PATTERN_2));
+        node.registerEvaluation(50);
+        assertEquals(50, node.totalPoints());
+    }
+
+    @Test
+    void registerEvaluationTwiceAccumulatesTotalPoints() {
+        var node = MctsNode.newMoveNode(PkMove.pack(TileSource.FACTORY_1, TileKind.Colored.B, TileDestination.PATTERN_2));
+        node.registerEvaluation(50);
+        node.registerEvaluation(30);
+        assertEquals(80, node.totalPoints());
+    }
+
+    @Test
+    void registerEvaluationWith0PointsIncreasesGameCountButNotPoints() {
+        var node = MctsNode.newMoveNode(PkMove.pack(TileSource.FACTORY_1, TileKind.Colored.A, TileDestination.PATTERN_1));
+        node.registerEvaluation(0);
+        assertEquals(1, node.gameCount());
         assertEquals(0, node.totalPoints());
     }
 
     @Test
-    void registerEvaluationCorrectlyUpdatesPackedInt() {
-        MctsNode node = MctsNode.newMoveNode(0xFF);
-        node.registerEvaluation(10);
-        node.registerEvaluation(20);
-
-        assertEquals(2, node.gameCount());
-        assertEquals(30, node.totalPoints());
-        assertEquals(15.0, node.averagePoints(), 1e-9);
-        assertEquals(0xFF, node.pkMove(), "Le coup empaqueté ne doit pas être modifié par N");
+    void registerEvaluation100TimesGivesCorrectGameCount() {
+        var node = MctsNode.newMoveNode(PkMove.pack(TileSource.CENTER_AREA, TileKind.Colored.C, TileDestination.PATTERN_3));
+        for (int i = 1; i <= 100; i++)
+            node.registerEvaluation(i);
+        assertEquals(100, node.gameCount());
     }
 
     @Test
-    void indexOfChildToExploreFollowsSequentialRuleThenFormula() {
-        MctsNode root = MctsNode.newRoot();
-        // Création manuelle des enfants (visibles dans le paquetage)
-        root.children = new MctsNode[] {
-                MctsNode.newMoveNode(1),
-                MctsNode.newMoveNode(2)
-        };
+    void registerEvaluation100TimesGivesCorrectTotalPoints() {
+        var node = MctsNode.newMoveNode(PkMove.pack(TileSource.CENTER_AREA, TileKind.Colored.C, TileDestination.PATTERN_3));
+        for (int i = 1; i <= 100; i++)
+            node.registerEvaluation(i);
+        assertEquals(5050, node.totalPoints());
+    }
 
-        // Règle séquentielle : N(parent) <= nb enfants
-        // N est initialisé à 1 pour la racine, donc 1 <= 2 -> index = 1 - 1 = 0
-        assertEquals(0, root.indexOfChildToExplore());
+    @Test
+    void registerEvaluation100000TimesGivesCorrectGameCount() {
+        var node = MctsNode.newMoveNode(PkMove.pack(TileSource.FACTORY_5, TileKind.Colored.E, TileDestination.PATTERN_5));
+        for (int i = 0; i < 100_000; i++)
+            node.registerEvaluation(i % 240);
+        assertEquals(100_000, node.gameCount());
+    }
 
-        root.registerEvaluation(0); // N passe à 2. 2 <= 2 -> index = 2 - 1 = 1
-        assertEquals(1, root.indexOfChildToExplore());
+    @Test
+    void averagePointsAfterOneEvaluation() {
+        var node = MctsNode.newMoveNode(PkMove.pack(TileSource.FACTORY_1, TileKind.Colored.A, TileDestination.PATTERN_1));
+        node.registerEvaluation(42);
+        assertEquals(42.0, node.averagePoints(), 1e-9);
+    }
 
-        root.registerEvaluation(0); // N passe à 3. 3 > 2 -> Utilise la formule de priorité
+    @Test
+    void averagePointsReturnsDoubleNotTruncatedInt() {
+        var node = MctsNode.newMoveNode(PkMove.pack(TileSource.FACTORY_2, TileKind.Colored.C, TileDestination.PATTERN_3));
+        node.registerEvaluation(10);
+        node.registerEvaluation(11);
+        assertEquals(10.5, node.averagePoints(), 1e-9);
+    }
 
-        // On donne l'avantage à l'enfant 0 par les points
-        root.children[0].registerEvaluation(100);
-        root.children[1].registerEvaluation(10);
+    @Test
+    void averagePointsAfter3EvaluationsIsCorrect() {
+        var node = MctsNode.newMoveNode(PkMove.pack(TileSource.FACTORY_3, TileKind.Colored.D, TileDestination.PATTERN_4));
+        node.registerEvaluation(10);
+        node.registerEvaluation(15);
+        node.registerEvaluation(20);
+        assertEquals(15.0, node.averagePoints(), 1e-9);
+    }
 
-        // Avec C=80, l'enfant 0 (moyenne 100) sera bien au-dessus de l'enfant 1 (moyenne 10)
-        assertEquals(0, root.indexOfChildToExplore());
+    @Test
+    void averagePointsAfter100EvaluationsIsCorrect() {
+        var node = MctsNode.newMoveNode(PkMove.pack(TileSource.CENTER_AREA, TileKind.Colored.C, TileDestination.PATTERN_3));
+        for (int i = 1; i <= 100; i++)
+            node.registerEvaluation(i);
+        assertEquals(50.5, node.averagePoints(), 1e-9);
+    }
+
+    @Test
+    void pkMoveIsPreservedAfterManyRegisterEvaluations() {
+        var pkMove = PkMove.pack(TileSource.FACTORY_7, TileKind.Colored.D, TileDestination.PATTERN_5);
+        var node = MctsNode.newMoveNode(pkMove);
+        for (int i = 0; i < 1000; i++)
+            node.registerEvaluation(i % 100);
+        assertEquals(pkMove, node.pkMove());
+    }
+
+    @Test
+    void pkMoveBitsNotCorruptedByLargeGameCount() {
+        var pkMove = PkMove.pack(TileSource.FACTORY_9, TileKind.Colored.E, TileDestination.FLOOR);
+        var node = MctsNode.newMoveNode(pkMove);
+        for (int i = 0; i < 50_000; i++)
+            node.registerEvaluation(42);
+        assertEquals(pkMove, node.pkMove());
     }
 }
