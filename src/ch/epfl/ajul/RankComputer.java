@@ -9,6 +9,7 @@ public final class RankComputer {
 
     private static final int POINTS_WEIGHT_OFFSET = 3;
     private static final int SCORE_OFFSET = 2;
+    private static final int PLAYER_ID_MASK = 0b11;
 
     public static void playersRank(ReadOnlyGameState gameState, int[] array) {
         assert isArraySizeValid(gameState, array);
@@ -42,7 +43,7 @@ public final class RankComputer {
         //On associe à chaque joueur (dans l'ordre) son rang
         int[] result = new int[tempArray.length];
         for (int i = 0; i < tempArray.length; i++){
-            int playerIndex = tempArray[i] & 0b11;
+            int playerIndex = tempArray[i] & PLAYER_ID_MASK;
             result[playerIndex] = array[i];
         }
         System.arraycopy(result, 0, array, 0, array.length);

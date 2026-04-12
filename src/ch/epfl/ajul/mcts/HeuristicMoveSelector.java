@@ -13,40 +13,66 @@ import java.util.random.RandomGenerator;
 
 public final class HeuristicMoveSelector {
 
+
+    private static final int RESERVOIR_SIZE = 1;
+
     public static int selectMove(RandomGenerator randomGenerator,
                                  ReadOnlyGameState gameState,
                                  short[] packedMoveArray,
                                  int validMoves) {
 
-        //Revoir le code en utilisant l'échantillonage par réservoir
-        int index1 = 0, index2 = 0 , index3 = 0;
-        int[] subMoves1 = new int[validMoves];
-        int[] subMoves2 = new int[validMoves];
-        int[] subMoves3 = new int[validMoves];
-
         int pattern = PkPlayerStates.pkPatterns(gameState.pkPlayerStates(), gameState.currentPlayerId());
-        for (int i = 0; i < validMoves; i++) {
-            var color = PkMove.color(packedMoveArray[i]);
-            var destination = PkMove.destination(packedMoveArray[i]);
-            var source = PkMove.source(packedMoveArray[i]);
+
+        int res1, res2, res3;
+        res1 = res2 = res3 = -1;
+
+        int count1, count2, count3;
+        count1 = count2 = count3 = 0;
+
+        for (int i = 0; i < validMoves; i++){
+            TileKind.Colored color = PkMove.color(packedMoveArray[i]);
+            TileDestination destination = PkMove.destination(packedMoveArray[i]);
+            TileSource source = PkMove.source(packedMoveArray[i]);
 
             if (destination instanceof TileDestination.Pattern line) {
                 int remaining = line.capacity() - PkPatterns.size(pattern, line);
                 int tileCount = PkTileSet.countOf(
                         gameState.pkTileSources().get(source.index()), color);
+
+                //Cas 1 : les coups remplissent totalement la ligne de motif
                 if (tileCount == remaining) {
-                    subMoves1[index1++] = i;
-                } else {
-                    subMoves2[index2++] = i;
+                    int j = randomGenerator.nextInt(count1 + 1);
+                    if (j == 0) res1 = i;
+                    count1++;
                 }
-            } else {
-                subMoves3[index3++] = i;
+
+                //Cas 2 : les coups remplissent partiellement une ligne de motif
+                else if (tileCount < remaining){
+                    int j = randomGenerator.nextInt(count2 + 1);
+                    if (j == 0) res2 = i;
+                    count2++;
+                }
+
+                //Cas 3 : Autres coups/Les coups qui remplissent une ligne de motif avec des tuiles excédentaires
+                else {
+                    int j = randomGenerator.nextInt(count3 + 1);
+                    if (j == 0) res3 = i;
+                    count3++;
+                }
+            }
+            //Cas 3 : Autres coups/Les coups qui remplissent la ligne plancher
+            else {
+                int j = randomGenerator.nextInt(count3 + 1);
+                if (j == 0) res3 = i;
+                count3++;
             }
         }
 
-        if (index1 > 0) return subMoves1[randomGenerator.nextInt(index1)];
-        if (index2 > 0) return subMoves2[randomGenerator.nextInt(index2)];
-        return subMoves3[randomGenerator.nextInt(index3)];
+        if (res1 != -1) return res1;
+        if (res2 != -1) return res2;
+        return res3;
+
+
     }
 
 
