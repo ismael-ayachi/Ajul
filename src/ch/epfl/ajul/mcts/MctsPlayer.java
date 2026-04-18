@@ -26,6 +26,7 @@ public final class MctsPlayer implements Player {
         short[] validMoves = new short[Move.MAX_MOVES];
         int[] playersRank = new int[gameState.game().playersCount()];
         byte[] browsedNode = new byte[32];
+        byte[] playerIndex = new byte[32];
         MctsNode root = MctsNode.newRoot();
 
         //Sélection
@@ -44,15 +45,21 @@ public final class MctsPlayer implements Player {
                     for (int j = 0; j < validMovesCount; j++) {
                         childNode[j] = MctsNode.newMoveNode(validMoves[j]);
                     }
-                    int toExploreIndex = currentNode.indexOfChildToExplore();
-                    currentNode = childNode[toExploreIndex];
                 }
+                int toExploreIndex = currentNode.indexOfChildToExplore();
+                currentNode = childNode[toExploreIndex];
+                browsedNode[i] = (byte) (Byte.toUnsignedInt((byte) toExploreIndex));
+                playerIndex[i] = (byte) gameState.currentPlayerId().ordinal();
+                mutableGameState.registerMove(validMoves[toExploreIndex]);
+            }
 
-                int toExplore = currentNode.indexOfChildToExplore();
 
 
+            while (!gameState.isGameOver()){
 
             }
+
+
 
         }
 
