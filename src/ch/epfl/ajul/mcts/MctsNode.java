@@ -23,8 +23,8 @@ public final class MctsNode {
         return new MctsNode(MOVE_MASK, 1);
     }
 
-    public static MctsNode newMoveNode(int packedMove) {
-        return new MctsNode(packedMove, 0);
+    public static MctsNode newMoveNode(int move) {
+        return new MctsNode(move, 0);
     }
 
     public int pkMove() {
