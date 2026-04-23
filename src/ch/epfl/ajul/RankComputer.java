@@ -31,6 +31,7 @@ public final class RankComputer {
         }
 
         int[] tempArray = Arrays.copyOf(array, array.length);
+
         //On place les rangs dans la liste
         int previousScore = array[0];
         array[0] = 0;

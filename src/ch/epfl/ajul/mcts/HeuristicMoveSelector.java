@@ -14,8 +14,6 @@ import java.util.random.RandomGenerator;
 public final class HeuristicMoveSelector {
 
 
-    private static final int RESERVOIR_SIZE = 1;
-
     public static int selectMove(RandomGenerator randomGenerator,
                                  ReadOnlyGameState gameState,
                                  short[] packedMoveArray,
@@ -72,8 +70,14 @@ public final class HeuristicMoveSelector {
         if (res2 != -1) return res2;
         return res3;
 
+    }
+
+    private static class ReservoirSampler {
+
+        public static int sampler;
 
     }
+
 
 
 }
