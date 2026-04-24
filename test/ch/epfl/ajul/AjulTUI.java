@@ -234,7 +234,7 @@ public final class AjulTUI {
         Map<PlayerId, Player> aiPlayers = new HashMap<>();
         for (int i = 0; i < n; i++) {
             if (kinds.get(playerIds.get(i)) == Game.PlayerDescription.PlayerKind.AI) {
-                aiPlayers.put(playerIds.get(i), new MctsPlayer(RandomGeneratorFactory.getDefault(), 10_000));
+                aiPlayers.put(playerIds.get(i), new MctsPlayer(RandomGeneratorFactory.getDefault(), 1000000));
             }
         }
 
@@ -255,8 +255,10 @@ public final class AjulTUI {
             gameState.registerMove(move.packed());
             if (gameState.isRoundOver()) {
                 gameState.endRound();
-                if (!gameState.isGameOver())
+                if (!gameState.isGameOver()) {
                     gameState.fillFactories(randomGenerator);
+                    println("=== Nouvelle manche === ");
+                }
             }
         }
 

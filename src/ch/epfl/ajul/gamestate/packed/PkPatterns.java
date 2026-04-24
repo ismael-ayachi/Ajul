@@ -78,6 +78,7 @@ public final class PkPatterns {
     /// @param color la couleur des tuiles à ajouter
     /// @return les lignes de motif empaquetées avec les tuiles ajoutées
     public static int withAddedTiles(int pkPatterns, TileDestination.Pattern line, int tileCount, TileKind.Colored color) {
+        if (tileCount == 0) return pkPatterns;
         assert isTileValid(pkPatterns, line, tileCount, color);
         if (size(pkPatterns, line) == EMPTY) {
             return pkPatterns
