@@ -9,6 +9,8 @@ import javafx.scene.text.Text;
 import java.awt.*;
 import java.util.*;
 import java.util.List;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 public record Tiles(Map<TileLocation, Node> anchors, Map<TileKind, List<Node>> tiles) {
     public static final int TILE_WIDTH = 30;
@@ -65,7 +67,37 @@ public record Tiles(Map<TileLocation, Node> anchors, Map<TileKind, List<Node>> t
 
     }
 
-    private static void putInAnchor(Map<TileLocation, Node> anchors, Game game){
+    private static void putInAnchor(Map<TileLocation, Node> anchors, Game game) {
+
+        Stream<TileLocation> sourceStream = game.tileSources().stream()
+                .flatMap(s -> IntStream.range(0, s instanceof TileSource.Factory
+                                ? TileSource.Factory.TILES_PER_FACTORY
+                                : game.centralAreaMaxSize())
+                        .mapToObj(i -> new TileLocation.OnSource(s, i)));
+
+        Stream<TileLocation> patternStream = game.playerIds().stream()
+                .flatMap(p -> TileDestination.Pattern.ALL.stream()
+                        .flatMap(line -> IntStream.range(0, line.capacity())
+                                .mapToObj(i -> new TileLocation.OnPattern(p, line, i))));
+
+        Stream<TileLocation> floorStream = game.playerIds().stream()
+                .flatMap(p -> IntStream.range(0, TileDestination.FLOOR.capacity())
+                        .mapToObj(i -> new TileLocation.OnFloor(p, i)));
+
+        Stream<TileLocation> wallStream = game.playerIds().stream()
+                .flatMap(p -> TileDestination.Pattern.ALL.stream()
+                        .flatMap(line -> IntStream.range(0, PkWall.WALL_WIDTH)
+                                .mapToObj(col -> new TileLocation.OnWall(p, line, PkWall.colorAt(line, col)))));
+
+        Stream<TileLocation> offBoardStream = TileKind.ALL.stream()
+                .flatMap(tileKind -> IntStream.range(0, tileKind.tilesCount())
+                        .mapToObj(i -> new TileLocation.OffBoard(tileKind, i)));
+
+        Stream.of(sourceStream, patternStream, floorStream, wallStream, offBoardStream)
+                .flatMap(s -> s)
+                .forEach(loc -> anchors.put(loc, createAnchor(loc)));
+
+     /*
         for (TileSource source : game.tileSources()){
             if (source instanceof TileSource.Factory){
                 for (int i = 0; i < TileSource.Factory.TILES_PER_FACTORY; i++){
@@ -81,6 +113,8 @@ public record Tiles(Map<TileLocation, Node> anchors, Map<TileKind, List<Node>> t
                 }
             }
         }
+
+
         for (TileDestination destination : TileDestination.ALL){
             if (destination instanceof TileDestination.Pattern){
                 for (PlayerId playerId : game.playerIds()){
@@ -120,4 +154,7 @@ public record Tiles(Map<TileLocation, Node> anchors, Map<TileKind, List<Node>> t
     }
 
 
+      */
+
+    }
 }

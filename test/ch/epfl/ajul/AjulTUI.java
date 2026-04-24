@@ -5,6 +5,8 @@ import ch.epfl.ajul.gamestate.Move;
 import ch.epfl.ajul.gamestate.MutableGameState;
 import ch.epfl.ajul.gamestate.ReadOnlyGameState;
 import ch.epfl.ajul.gamestate.packed.*;
+import ch.epfl.ajul.mcts.HeuristicMoveSelector;
+import ch.epfl.ajul.mcts.MctsPlayer;
 
 import java.util.*;
 import java.util.random.RandomGenerator;
@@ -17,9 +19,8 @@ public final class AjulTUI {
 
     private static final int LABEL_WIDTH   = 10;
     private static final int WALL_WIDTH    = 5;
-    private static final int PLATEAU_WIDTH = 18; // largeur de "Pté 1 1 2 2 2 3 3"
+    private static final int PLATEAU_WIDTH = 18;
 
-    /// Formate le contenu d'une source sous la forme "A C DD" (lettre répétée, "1" pour le marqueur).
     private static String formatSource(int pkTileSet) {
         StringBuilder sb = new StringBuilder();
         for (TileKind.Colored color : TileKind.Colored.ALL) {
@@ -36,21 +37,17 @@ public final class AjulTUI {
         return sb.toString();
     }
 
-    /// Formate une ligne de motif en largeur fixe PLATEAU_WIDTH :
-    /// dots+tuiles alignés à droite sur WALL_WIDTH chars, espace, ligne du mur sur WALL_WIDTH chars.
     private static String patternLine(int pkPatterns, int pkWall, TileDestination.Pattern line) {
         int    size     = PkPatterns.size(pkPatterns, line);
         String tiles    = size == 0 ? "" : PkPatterns.color(pkPatterns, line).toString().repeat(size);
         String dots     = ".".repeat(line.capacity() - size);
         String wallStr  = PkWall.toString(pkWall);
         String wallLine = wallStr.substring(1, wallStr.length() - 1).split(", ")[line.index()];
-        // dots+tuiles : alignés à droite sur WALL_WIDTH ; mur : toujours WALL_WIDTH chars
-        String content = String.format("%" + WALL_WIDTH + "s %s", dots + tiles, wallLine);
+        String content  = String.format("%" + WALL_WIDTH + "s %s", dots + tiles, wallLine);
         return String.format("%-" + PLATEAU_WIDTH + "s", content);
     }
 
     static void printState(ReadOnlyGameState gameState) {
-        // --- Fabriques (3 par ligne) ---
         List<TileSource.Factory> factories = gameState.game().factories();
         StringBuilder factoryLine = new StringBuilder("Fabriques :");
         for (int i = 0; i < factories.size(); i++) {
@@ -67,7 +64,6 @@ public final class AjulTUI {
                 formatSource(gameState.pkTileSources().get(0))));
         println("");
 
-        // --- Plateaux côte à côte (par paires) ---
         List<PlayerId> players = gameState.playerIds();
         for (int i = 0; i < players.size(); i += 2) {
             PlayerId p1  = players.get(i);
@@ -103,7 +99,6 @@ public final class AjulTUI {
                 println(String.format(" %s%s | %s%s", lLabel, left, rLabel, right));
             }
 
-            // Plancher (affiché uniquement si non vide)
             String floorLeft  = pkFl1 != PkFloor.EMPTY
                     ? String.format("%-" + PLATEAU_WIDTH + "s", PkFloor.toString(pkFl1))
                     : " ".repeat(PLATEAU_WIDTH);
@@ -115,7 +110,6 @@ public final class AjulTUI {
             }
             println("");
 
-            // Pénalités
             String pte = "Pté 1 1 2 2 2 3 3";
             println(String.format(" %s%s | %s",
                     " ".repeat(LABEL_WIDTH), pte, p2 != null ? pte : ""));
@@ -123,10 +117,9 @@ public final class AjulTUI {
         }
     }
 
+    /// Demande au joueur humain de saisir un coup valide.
     static Move queryNextMove(String playerName, ReadOnlyGameState gameState) {
         Scanner scanner = new Scanner(System.in);
-
-        // Calculer les coups valides
         short[] validMovesArr = new short[Move.MAX_MOVES];
         int validCount = gameState.validMoves(validMovesArr);
 
@@ -153,13 +146,9 @@ public final class AjulTUI {
                 Move move = new Move(source, color, destination);
                 short packed = move.packed();
 
-                // Vérifier que le coup est dans la liste des coups valides
                 boolean isValid = false;
                 for (int i = 0; i < validCount; i++) {
-                    if (validMovesArr[i] == packed) {
-                        isValid = true;
-                        break;
-                    }
+                    if (validMovesArr[i] == packed) { isValid = true; break; }
                 }
 
                 if (isValid) return move;
@@ -171,6 +160,19 @@ public final class AjulTUI {
         }
     }
 
+    /// Sélectionne automatiquement un coup pour l'IA avec MctsPlayer.
+    static Move queryAiMove(String playerName, ReadOnlyGameState gameState,
+                            Map<PlayerId, Player> aiPlayers) {
+        PlayerId current = gameState.currentPlayerId();
+        Move move = aiPlayers.get(current).nextMove(gameState);
+        println(playerName + " (IA) joue : "
+                + move.source().index()
+                + move.tileColor()
+                + (move.destination() == TileDestination.FLOOR ? 0
+                : ((TileDestination.Pattern) move.destination()).index() + 1));
+        return move;
+    }
+
     private static void printFinalScores(ReadOnlyGameState gameState) {
         for (PlayerId playerId : gameState.playerIds()) {
             String name   = gameState.game().playerDescriptions().get(playerId.ordinal()).name();
@@ -179,23 +181,77 @@ public final class AjulTUI {
         }
     }
 
+    /// Demande à l'utilisateur de choisir le type de chaque joueur (humain ou IA).
+    private static Map<PlayerId, Game.PlayerDescription.PlayerKind> queryPlayerKinds(
+            List<PlayerId> playerIds, List<String> names, Scanner scanner) {
+        Map<PlayerId, Game.PlayerDescription.PlayerKind> kinds = new HashMap<>();
+        for (int i = 0; i < playerIds.size(); i++) {
+            while (true) {
+                print(names.get(i) + " est-il humain ou IA ? (h/ia) : ");
+                String choice = scanner.nextLine().trim().toLowerCase();
+                if (choice.equals("h")) {
+                    kinds.put(playerIds.get(i), Game.PlayerDescription.PlayerKind.HUMAN);
+                    break;
+                } else if (choice.equals("ia")) {
+                    kinds.put(playerIds.get(i), Game.PlayerDescription.PlayerKind.AI);
+                    break;
+                } else {
+                    println("Réponse invalide, entrez 'h' ou 'ia'.");
+                }
+            }
+        }
+        return kinds;
+    }
+
     static void main() {
+        Scanner scanner = new Scanner(System.in);
         RandomGenerator randomGenerator = RandomGeneratorFactory.getDefault().create(2026);
 
-        List<Game.PlayerDescription> playerInfos = List.of(
-                new Game.PlayerDescription(PlayerId.P1, "Aline",    Game.PlayerDescription.PlayerKind.HUMAN),
-                new Game.PlayerDescription(PlayerId.P2, "Bertrand", Game.PlayerDescription.PlayerKind.HUMAN));
+        // Configuration des joueurs
+        print("Nombre de joueurs (2-4) : ");
+        int n = Integer.parseInt(scanner.nextLine().trim());
+
+        List<String> names = new ArrayList<>();
+        List<PlayerId> playerIds = PlayerId.ALL.subList(0, n);
+        for (int i = 0; i < n; i++) {
+            print("Nom du joueur " + (i + 1) + " : ");
+            names.add(scanner.nextLine().trim());
+        }
+
+        Map<PlayerId, Game.PlayerDescription.PlayerKind> kinds =
+                queryPlayerKinds(playerIds, names, scanner);
+
+        List<Game.PlayerDescription> playerInfos = new ArrayList<>();
+        for (int i = 0; i < n; i++) {
+            playerInfos.add(new Game.PlayerDescription(playerIds.get(i), names.get(i), kinds.get(playerIds.get(i))));
+        }
 
         Game game = new Game(playerInfos);
-
         MutableGameState gameState = new MutableGameState(ImmutableGameState.initial(game));
         gameState.fillFactories(randomGenerator);
 
+        // Créer les instances MctsPlayer pour les joueurs IA
+        Map<PlayerId, Player> aiPlayers = new HashMap<>();
+        for (int i = 0; i < n; i++) {
+            if (kinds.get(playerIds.get(i)) == Game.PlayerDescription.PlayerKind.AI) {
+                aiPlayers.put(playerIds.get(i), new MctsPlayer(RandomGeneratorFactory.getDefault(), 10_000));
+            }
+        }
+
         while (!gameState.isGameOver()) {
             printState(gameState);
-            String playerName = gameState.game().playerDescriptions()
-                    .get(gameState.currentPlayerId().ordinal()).name();
-            Move move = queryNextMove(playerName, gameState);
+            PlayerId current = gameState.currentPlayerId();
+            int idx = current.ordinal();
+            String playerName = names.get(idx);
+            Game.PlayerDescription.PlayerKind kind = kinds.get(current);
+
+            Move move;
+            if (kind == Game.PlayerDescription.PlayerKind.HUMAN) {
+                move = queryNextMove(playerName, gameState);
+            } else {
+                move = queryAiMove(playerName, gameState, aiPlayers);
+            }
+
             gameState.registerMove(move.packed());
             if (gameState.isRoundOver()) {
                 gameState.endRound();
