@@ -1,0 +1,115 @@
+#tile-sources {
+    -fx-hgap: 16;
+    -fx-vgap: 16;
+    -fx-padding: 8;
+}
+
+.player-board {
+    -fx-border-width: 4;
+    -fx-border-color: lightgrey;
+    -fx-border-style: solid;
+    -fx-border-radius: 8;
+    -fx-padding: 4;
+    -fx-alignment: top-left;
+}
+
+.player-board.current-player {
+    -fx-border-color: darkgrey;
+}
+
+.player-board>VBox {
+    -fx-fill-width: false;
+}
+
+#player-boards {
+    -fx-hgap: 4;
+    -fx-vgap: 4;
+    -fx-padding: 8;
+}
+
+.lines-and-wall {
+    -fx-hgap: 4;
+    -fx-alignment: baseline-center;
+}
+
+#bonus-points Label {
+    -fx-alignment: baseline-center;
+}
+
+.tile {
+    -fx-arc-width: 12;
+    -fx-arc-height: 12;
+    -fx-stroke: rgb(1,1,1,0.25);
+    -fx-stroke-type: inside;
+    -fx-fill: transparent;
+}
+
+.tile.wall-background {
+    -fx-opacity: 0.2;
+}
+
+#first-player-marker .tile {
+    -fx-fill: pink;
+}
+
+#first-player-marker Text {
+    -fx-font-size: 18;
+    -fx-font-weight: bold;
+}
+
+.tile.A {
+    -fx-fill: grey;
+}
+
+.tile.B {
+    -fx-fill: #96cac3ff;
+}
+
+.tile.C {
+    -fx-fill: #f1f5bdff;
+}
+
+.tile.D {
+    -fx-fill: #cca970ff;
+}
+
+.tile.E {
+    -fx-fill: #ad1d1aff;
+}
+
+#tile-sources .anchor {
+    -fx-stroke: transparent;
+}
+
+HBox.tile-group {
+    -fx-spacing: 4;
+}
+
+GridPane.tile-group {
+    -fx-hgap: 4;
+    -fx-vgap: 4;
+}
+
+.tile-source {
+    -fx-background-color: whitesmoke;
+    -fx-background-radius: 8;
+    -fx-padding: 4;
+}
+
+.tile-destination {
+    -fx-border-color: transparent;
+    -fx-border-width: 1;
+    -fx-padding: 1;
+    -fx-border-style: solid;
+}
+
+.tile-destination.accepting {
+    -fx-border-color: darkgreen;
+    -fx-border-radius: 4;
+    -fx-background-radius: 4;
+    -fx-background-color: lightgreen;
+}
+
+.floor > VBox {
+    -fx-alignment: center;
+}

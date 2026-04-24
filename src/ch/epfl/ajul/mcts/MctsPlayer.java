@@ -35,7 +35,7 @@ public final class MctsPlayer implements Player {
         MctsNode[] nodeArray = new MctsNode[256];
 
         MctsNode root = MctsNode.newRoot();
-        RandomGenerator fixedGenerator = randomGeneratorFactory.create(2025);
+        RandomGenerator fixedGenerator = randomGeneratorFactory.create(42);
 
         for (int i = 0; i < iterationCount; i++){
 

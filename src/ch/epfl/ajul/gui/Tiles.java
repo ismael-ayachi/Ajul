@@ -49,8 +49,7 @@ public record Tiles(Map<TileLocation, Node> anchors, Map<TileKind, List<Node>> t
 
     private static Node createAnchor(TileLocation tileLocation) {
         Rectangle anchor = new Rectangle(TILE_WIDTH, TILE_HEIGHT);
-        anchor.getStyleClass().add("tile");
-        anchor.getStyleClass().add("anchor");
+        anchor.getStyleClass().addAll("tile", "anchor");
         setLocation(anchor, tileLocation);
         return anchor;
     }

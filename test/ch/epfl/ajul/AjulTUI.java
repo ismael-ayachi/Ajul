@@ -234,7 +234,7 @@ public final class AjulTUI {
         Map<PlayerId, Player> aiPlayers = new HashMap<>();
         for (int i = 0; i < n; i++) {
             if (kinds.get(playerIds.get(i)) == Game.PlayerDescription.PlayerKind.AI) {
-                aiPlayers.put(playerIds.get(i), new MctsPlayer(RandomGeneratorFactory.getDefault(), 1000000));
+                aiPlayers.put(playerIds.get(i), new MctsPlayer(RandomGeneratorFactory.getDefault(), 100000));
             }
         }
 
