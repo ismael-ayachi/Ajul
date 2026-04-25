@@ -20,6 +20,7 @@ import java.util.concurrent.SynchronousQueue;
 import static ch.epfl.ajul.Game.PlayerDescription.PlayerKind.HUMAN;
 
 public final class TestBoardUI extends Application {
+
     @Override
     public void start(Stage primaryStage) {
         int playersCount = 2;
