@@ -123,7 +123,6 @@ public final class BoardUI {
                                     PkWall.colorAt(TileDestination.Pattern.ALL.get(row), col-2)));
                     anchor.getStyleClass().addAll("wall-background",
                             PkWall.colorAt(TileDestination.Pattern.ALL.get(row), col-2).toString());
-
                     patternWall.add(anchor, col, row);
 
                 }
