@@ -2,38 +2,44 @@ package ch.epfl.ajul.gui;
 
 import ch.epfl.ajul.*;
 import ch.epfl.ajul.gamestate.ImmutableGameState;
+import ch.epfl.ajul.gamestate.packed.PkPatterns;
+import ch.epfl.ajul.gamestate.packed.PkPlayerStates;
 import ch.epfl.ajul.gamestate.packed.PkWall;
+import javafx.beans.binding.Bindings;
 import javafx.beans.value.ObservableValue;
 import javafx.geometry.HPos;
-import javafx.geometry.Pos;
-import javafx.geometry.VPos;
 import javafx.scene.Node;
-import javafx.scene.Scene;
+import javafx.scene.input.MouseDragEvent;
 import javafx.scene.layout.*;
-import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Text;
 
-import java.security.spec.PKCS8EncodedKeySpec;
+import java.awt.event.MouseEvent;
 import java.util.*;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
-import static javafx.geometry.Pos.*;
+import static java.awt.Event.MOUSE_DRAG;
+
 
 public final class BoardUI {
 
     private final Map<TileLocation, Node> anchors;
     private final ObservableValue<ImmutableGameState> observer;
     private final Node root;
+    Map<AbstractMap.SimpleEntry<PlayerId, Object>, Text> bonusMap;
 
-    private BoardUI(Map<TileLocation, Node> anchors, ObservableValue<ImmutableGameState> observer, Node root){
+    private BoardUI(Map<TileLocation, Node> anchors,
+                    ObservableValue<ImmutableGameState> observer,
+                    Node root,
+                    Map<AbstractMap.SimpleEntry<PlayerId, Object>, Text> bonusMap){
         this.anchors = anchors;
         this.observer = observer;
         this.root = root;
+        this.bonusMap = bonusMap;
     }
 
     //Create prend aussi 3 autres arguments à ajouter à la fin/en lien avec le drag&drop
     public static BoardUI create(Map<TileLocation, Node> anchors, ObservableValue<ImmutableGameState> observer){
+
+        //Définit une variable GameState pour a partie statique ???
 
         //Root
         HBox root = new HBox();
@@ -42,6 +48,10 @@ public final class BoardUI {
         GridPane sourceGrid = new GridPane();
         sourceGrid.setId("tile-sources");
         root.getChildren().add(sourceGrid);
+
+        //Table associative pour la visibilité des points bonus
+        Map<AbstractMap.SimpleEntry<PlayerId, Object>, Text> bonusMap = new HashMap<>();
+
 
 
         //Fabriques
@@ -83,6 +93,20 @@ public final class BoardUI {
             currentPlayerBoard.getStyleClass().addAll("player-board");
 
             playerBoards.put(playerId, currentPlayerBoard);
+
+            //Nom et points des joueurs
+
+            ObservableValue<Integer> pointsObserver = observer.map( gameState ->
+                    PkPlayerStates.points(gameState.pkPlayerStates(), playerId));
+            Text identity = new Text();
+            identity.textProperty().bind(
+                    Bindings.format("%s\nPoints : %d",
+                        observer.getValue().game().playerDescriptions().get(playerId.ordinal()).name(),
+                        observer.map(gs -> PkPlayerStates.points(gs.pkPlayerStates(), playerId))));
+
+
+            currentPlayerBoard.getChildren().add(identity);
+
             //Contenu du plateau du joueur courant
             VBox gridContent = new VBox();
             currentPlayerBoard.getChildren().add(gridContent);
@@ -98,8 +122,17 @@ public final class BoardUI {
             for (int row = 0; row < PkWall.WALL_WIDTH; row++){
 
                 HBox patternBox = new HBox();
-
                 patternBox.getStyleClass().addAll("tile-destination" , "tile-group");
+
+                //Gestion des événements
+                patternBox.addEventHandler(MouseDragEvent.MOUSE_DRAG_ENTERED, e -> {
+                    ImmutableGameState currentState = observer.getValue();
+                    int pattern = PkPlayerStates.pkPatterns(currentState.pkPlayerStates(), playerId);
+                   // if (PkPatterns.canContain(pattern, TileDestination.Pattern.ALL.get(row), ) && !PkPatterns.isFull())
+                });
+                patternBox.addEventHandler(MouseDragEvent.MOUSE_DRAG_EXITED, e -> {});
+                patternBox.addEventHandler(MouseDragEvent.MOUSE_DRAG_RELEASED, e -> {});
+
                 for (int count = 0; count < row + 1; count++) {
                     Node anchor =
                             anchors.get(new TileLocation.OnPattern(playerId,TileDestination.Pattern.ALL.get(row), count));
@@ -111,10 +144,16 @@ public final class BoardUI {
                 patternWall.add(patternBox, 0, row);
 
                 Text fullColorBonus = new Text("+10");
+                fullColorBonus.setVisible(false);
+
                 patternWall.add(fullColorBonus, 1, row);
 
 
                 for (int col = 2; col < 7 ; col++) {
+
+                    bonusMap.put(new AbstractMap.SimpleEntry<>(
+                            playerId,
+                            PkWall.colorAt(TileDestination.Pattern.ALL.get(row), col - 2)), fullColorBonus);
 
                     Node anchor = anchors.get(
                             new TileLocation.OnWall(
@@ -128,11 +167,15 @@ public final class BoardUI {
                 }
 
                 Text fullRowBonus = new Text("+2");
+                fullRowBonus.setVisible(false);
+                bonusMap.put(new AbstractMap.SimpleEntry<>(playerId, TileDestination.Pattern.ALL.get(row)), fullRowBonus);
                 patternWall.add(fullRowBonus, 7, row);
             }
 
             for (int col = 2; col < 7 ; col++) {
                 Text fullColBonus = new Text("+7");
+                fullColBonus.setVisible(false);
+                bonusMap.put(new AbstractMap.SimpleEntry<>(playerId, col - 2) , fullColBonus);
                 GridPane.setHalignment(fullColBonus, HPos.CENTER);
                 patternWall.add(fullColBonus, col, 5);
             }
@@ -166,9 +209,11 @@ public final class BoardUI {
             });
         });
 
+        //Gestion des événements
 
 
-        return new BoardUI(anchors, observer, root);
+
+        return new BoardUI(anchors, observer, root, bonusMap);
 
     }
 
@@ -177,7 +222,7 @@ public final class BoardUI {
     }
 
     public void showBonusPoints(PlayerId playerId, Object bonusKey){
-
+        bonusMap.get(new AbstractMap.SimpleEntry<>(playerId, bonusKey)).setVisible(true);
     }
 
 }
