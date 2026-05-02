@@ -40,11 +40,10 @@ public final class TestBoardUI extends Application {
 
         Tiles tiles = Tiles.create(game);
         BoardUI boardUI = BoardUI.create(tiles.anchors(),
-                gameStateP);
-
-                // ,potentialMoves,
-               // moveAccepted,
-                //moveQueue);
+                gameStateP,
+                potentialMoves,
+                moveAccepted,
+                moveQueue);
         Parent root = new StackPane(boardUI.root());
         root.getStylesheets().add("ajul.css");
 

@@ -2,7 +2,7 @@ package ch.epfl.ajul.gui;
 
 import ch.epfl.ajul.*;
 import ch.epfl.ajul.gamestate.ImmutableGameState;
-import ch.epfl.ajul.gamestate.packed.PkPatterns;
+import ch.epfl.ajul.gamestate.Move;
 import ch.epfl.ajul.gamestate.packed.PkPlayerStates;
 import ch.epfl.ajul.gamestate.packed.PkWall;
 import javafx.beans.binding.Bindings;
@@ -12,34 +12,29 @@ import javafx.scene.Node;
 import javafx.scene.input.MouseDragEvent;
 import javafx.scene.layout.*;
 import javafx.scene.text.Text;
-
-import java.awt.event.MouseEvent;
 import java.util.*;
-
-import static java.awt.Event.MOUSE_DRAG;
+import java.util.concurrent.BlockingQueue;
 
 
 public final class BoardUI {
 
-    private final Map<TileLocation, Node> anchors;
-    private final ObservableValue<ImmutableGameState> observer;
+
     private final Node root;
     Map<AbstractMap.SimpleEntry<PlayerId, Object>, Text> bonusMap;
 
-    private BoardUI(Map<TileLocation, Node> anchors,
-                    ObservableValue<ImmutableGameState> observer,
-                    Node root,
-                    Map<AbstractMap.SimpleEntry<PlayerId, Object>, Text> bonusMap){
-        this.anchors = anchors;
-        this.observer = observer;
+    private BoardUI(Node root, Map<AbstractMap.SimpleEntry<PlayerId, Object>, Text> bonusMap){
         this.root = root;
         this.bonusMap = bonusMap;
     }
 
     //Create prend aussi 3 autres arguments à ajouter à la fin/en lien avec le drag&drop
-    public static BoardUI create(Map<TileLocation, Node> anchors, ObservableValue<ImmutableGameState> observer){
+    public static BoardUI create(Map<TileLocation, Node> anchors,
+                                 ObservableValue<ImmutableGameState> observer,
+                                 Set<Move> potentialMoves,
+                                 boolean[] moveAccepted,
+                                 BlockingQueue<Move> moveQueue) {
 
-        //Définit une variable GameState pour a partie statique ???
+        //Définit une variable GameState pour à partie statique ???
 
         //Root
         HBox root = new HBox();
@@ -124,14 +119,32 @@ public final class BoardUI {
                 HBox patternBox = new HBox();
                 patternBox.getStyleClass().addAll("tile-destination" , "tile-group");
 
+                TileDestination.Pattern line = TileDestination.Pattern.ALL.get(row);
+
                 //Gestion des événements
-                patternBox.addEventHandler(MouseDragEvent.MOUSE_DRAG_ENTERED, e -> {
-                    ImmutableGameState currentState = observer.getValue();
-                    int pattern = PkPlayerStates.pkPatterns(currentState.pkPlayerStates(), playerId);
-                   // if (PkPatterns.canContain(pattern, TileDestination.Pattern.ALL.get(row), ) && !PkPatterns.isFull())
+                patternBox.addEventHandler(MouseDragEvent.MOUSE_DRAG_ENTERED, ( _ -> {
+                    boolean canAccept = potentialMoves.stream()
+                            .anyMatch(move -> move.destination().equals(line));
+                    if (canAccept)
+                        patternBox.getStyleClass().add("accepting");
+                }));
+
+                patternBox.addEventHandler(
+                        MouseDragEvent.MOUSE_DRAG_EXITED,
+                        _ -> patternBox.getStyleClass().remove("accepting"));
+
+                patternBox.addEventHandler(MouseDragEvent.MOUSE_DRAG_RELEASED, _ -> {
+                    boolean canAccept = potentialMoves.stream()
+                            .anyMatch(move -> move.destination().equals(line));
+                    Move moveFound = potentialMoves.stream().filter(
+                            move -> move.destination().equals(line)).findFirst().orElse(null);
+                    if (canAccept && moveQueue.offer(Objects.requireNonNull(moveFound))){
+                        moveAccepted[0] = true;
+                        patternBox.getStyleClass().remove("accepting");
+                    }
                 });
-                patternBox.addEventHandler(MouseDragEvent.MOUSE_DRAG_EXITED, e -> {});
-                patternBox.addEventHandler(MouseDragEvent.MOUSE_DRAG_RELEASED, e -> {});
+
+
 
                 for (int count = 0; count < row + 1; count++) {
                     Node anchor =
@@ -209,11 +222,7 @@ public final class BoardUI {
             });
         });
 
-        //Gestion des événements
-
-
-
-        return new BoardUI(anchors, observer, root, bonusMap);
+        return new BoardUI(root, bonusMap);
 
     }
 
