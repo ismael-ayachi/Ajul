@@ -103,7 +103,7 @@ public final class MutableGameState implements ReadOnlyGameState {
             coloredTiles = Arrays.copyOf(coloredTiles, pkTileBagSize);
 
         // On retire les tuiles tirées du sac
-        for (int i = pkTileBagNotDiscardedSize; i < coloredTiles.length; i++)
+            for (int i = pkTileBagNotDiscardedSize; i < coloredTiles.length; i++)
             pkTileBag = PkTileSet.remove(pkTileBag, coloredTiles[i]);
 
         // Mélange et distribution dans les fabriques
