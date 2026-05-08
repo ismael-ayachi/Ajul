@@ -69,11 +69,12 @@ public final class TestStage10 extends Application {
                     gameState.immutable();
 
             short[] validMovesArray = new short[Move.MAX_MOVES];
-            immutableGameState.validMoves(validMovesArray);
-            for (short pkMove : validMovesArray){
-                Move move = Move.ofPacked(pkMove);
-                validMoves.add(move);
+            int count = immutableGameState.validMoves(validMovesArray);
+            for (int i = 0; i < count; i++) {
+                validMoves.add(Move.ofPacked(validMovesArray[i]));
             }
+
+            gameStateP.set(immutableGameState);
         });
 
         root.getStylesheets().add("ajul.css");

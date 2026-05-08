@@ -198,8 +198,31 @@ public final class BoardUI {
             floor.getStyleClass().addAll("floor", "tile-group", "tile-destination");
             gridContent.getChildren().add(floor);
 
+            floor.addEventHandler(MouseDragEvent.MOUSE_DRAG_ENTERED, _ -> {
+                boolean canAccept = potentialMoves.stream()
+                        .anyMatch(move -> move.destination().equals(TileDestination.FLOOR));
+                if (canAccept)
+                    floor.getStyleClass().add("accepting");
+            });
 
-            for (int i = 0; i < TileDestination.FLOOR.capacity(); i++){
+            floor.addEventHandler(MouseDragEvent.MOUSE_DRAG_EXITED,
+                    _ -> floor.getStyleClass().remove("accepting"));
+
+            floor.addEventHandler(MouseDragEvent.MOUSE_DRAG_RELEASED, _ -> {
+                boolean canAccept = potentialMoves.stream()
+                        .anyMatch(move -> move.destination().equals(TileDestination.FLOOR));
+                Move moveFound = potentialMoves.stream()
+                        .filter(move -> move.destination().equals(TileDestination.FLOOR))
+                        .findFirst().orElse(null);
+                if (canAccept && moveQueue.offer(Objects.requireNonNull(moveFound))) {
+                    moveAccepted[0] = true;
+                    floor.getStyleClass().remove("accepting");
+                }
+            });
+
+
+
+        for (int i = 0; i < TileDestination.FLOOR.capacity(); i++){
                 VBox floorPositions = new VBox();
 
                 Node anchor = anchors.get(new TileLocation.OnFloor(playerId, i));

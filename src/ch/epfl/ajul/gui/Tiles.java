@@ -40,7 +40,9 @@ public record Tiles(Map<TileLocation, Node> anchors, Map<TileKind, List<Node>> t
             return coloredTile;
         }
         else {
-            StackPane markerTile = new StackPane(new Rectangle(TILE_WIDTH, TILE_HEIGHT), new Text("1"));
+            Rectangle marker = new Rectangle(TILE_WIDTH, TILE_HEIGHT);
+            marker.getStyleClass().add("tile");
+            StackPane markerTile = new StackPane(marker, new Text("1"));
             markerTile.setId("first-player-marker");
             markerTile.getStyleClass().add("tile");
             return markerTile;

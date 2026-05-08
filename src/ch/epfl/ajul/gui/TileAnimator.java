@@ -50,8 +50,13 @@ import java.util.function.Function;
                 for (int pkTileSource : gameState.pkTileSources().toArray()) {
                     int tilesCount = PkTileSet.countOf(pkTileSource, tileKind);
                     TileSource tileSource = TileSource.ALL.get(sourceIndex);
+                    int offset = 0;
+                    for (TileKind tileKind1 : TileKind.ALL){
+                        if (tileKind1.equals(tileKind)) break;
+                        offset += PkTileSet.countOf(pkTileSource, tileKind1);
+                    }
                     for (int j = 0; j < tilesCount; j++) {
-                        demand.source().add(new TileLocation.OnSource(tileSource, j));
+                        demand.source().add(new TileLocation.OnSource(tileSource, offset + j));
                     }
                     sourceIndex++;
                 }
@@ -193,7 +198,7 @@ import java.util.function.Function;
                 }
 
                 // Construction de l'animation
-                for (Map.Entry<TileLocation, TileLocation> entry : pairings.entrySet()) {
+              /*  for (Map.Entry<TileLocation, TileLocation> entry : pairings.entrySet()) {
                     TileLocation supplyLoc = entry.getKey();
                     TileLocation demandLoc = entry.getValue();
 
@@ -205,8 +210,38 @@ import java.util.function.Function;
                     Point2D destination = position.apply(demandLoc);
                     parallelTransition.getChildren().add(
                             new RelocationTransition(node, destination, Duration.millis(500)));
+
+
                     Tiles.setLocation(node, demandLoc);
                 }
+
+               */
+                // D'abord, trouve tous les nodes AVANT de modifier quoi que ce soit
+                Map<TileLocation, Node> supplyNodes = new HashMap<>();
+                for (TileLocation supplyLoc : pairings.keySet()) {
+                    Node node = tiles.get(tileKind).stream()
+                            .filter(n -> Tiles.location(n).equals(supplyLoc))
+                            .findFirst()
+                            .orElseThrow();
+                    supplyNodes.put(supplyLoc, node);
+                }
+
+                // Ensuite, crée les animations ET mets à jour les locations
+                for (Map.Entry<TileLocation, TileLocation> entry : pairings.entrySet()) {
+                    TileLocation supplyLoc = entry.getKey();
+                    TileLocation demandLoc = entry.getValue();
+
+                    Node node = supplyNodes.get(supplyLoc);
+                    Point2D destination = position.apply(demandLoc);
+
+                    // 1. Mettre à jour la location
+                    Tiles.setLocation(node, demandLoc);
+
+                    // 2. Créer et ajouter l'animation
+                    parallelTransition.getChildren().add(
+                            new RelocationTransition(node, destination, Duration.millis(500)));
+                }
+
             }
 
             return parallelTransition;
