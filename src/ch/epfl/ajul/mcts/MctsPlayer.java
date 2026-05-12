@@ -36,6 +36,7 @@ public final class MctsPlayer implements Player {
 
         MctsNode root = MctsNode.newRoot();
         RandomGenerator fixedGenerator = randomGeneratorFactory.create(42);
+        RandomGenerator endGameGenerator = randomGeneratorFactory.create(gameState.pkTileBag());
 
         for (int i = 0; i < iterationCount; i++){
 
@@ -70,16 +71,16 @@ public final class MctsPlayer implements Player {
             }
 
             //Simulation
-            RandomGenerator randomGenerator = randomGeneratorFactory.create(currentNode.totalPoints());
+            //RandomGenerator randomGenerator = randomGeneratorFactory.create(currentNode.totalPoints());
             while (!mutableGameState.isGameOver()){
                 int validMovesCount = mutableGameState.uniqueValidMoves(validMoves);
                 int selectedMove =
-                        HeuristicMoveSelector.selectMove(randomGenerator, mutableGameState, validMoves, validMovesCount);
+                        HeuristicMoveSelector.selectMove(endGameGenerator, mutableGameState, validMoves, validMovesCount);
                 mutableGameState.registerMove(validMoves[selectedMove]);
                 if (mutableGameState.isRoundOver()) {
                     mutableGameState.endRound();
                     if (!mutableGameState.isGameOver()){
-                        mutableGameState.fillFactories(randomGenerator);
+                        mutableGameState.fillFactories(endGameGenerator);
                     }
 
                 }

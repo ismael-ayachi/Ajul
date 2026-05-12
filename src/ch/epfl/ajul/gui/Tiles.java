@@ -49,10 +49,10 @@ public record Tiles(Map<TileLocation, Node> anchors, Map<TileKind, List<Node>> t
         }
     }
 
-    private static Node createAnchor(TileLocation tileLocation) {
+    private static Node createAnchor() {
         Rectangle anchor = new Rectangle(TILE_WIDTH, TILE_HEIGHT);
         anchor.getStyleClass().addAll("tile", "anchor");
-        setLocation(anchor, tileLocation);
+        //setLocation(anchor, tileLocation); // À Supprimer d'après étape 11
         return anchor;
     }
 
@@ -96,7 +96,7 @@ public record Tiles(Map<TileLocation, Node> anchors, Map<TileKind, List<Node>> t
 
         Stream.of(sourceStream, patternStream, floorStream, wallStream, offBoardStream)
                 .flatMap(s -> s)
-                .forEach(loc -> anchors.put(loc, createAnchor(loc)));
+                .forEach(loc -> anchors.put(loc, createAnchor()));
 
      /*
         for (TileSource source : game.tileSources()){

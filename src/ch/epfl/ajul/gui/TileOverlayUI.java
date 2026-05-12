@@ -100,7 +100,7 @@ public final class TileOverlayUI {
                                 }
                             });
 
-                        node.setOnMouseReleased( _ -> {
+                        node.setOnMouseDragReleased( _ -> {
                             for (Node nodeToMove : nodesToMove){
 
                                 if (moveAccepted[0]){
@@ -117,7 +117,7 @@ public final class TileOverlayUI {
                                     transition.play();
                                 }
                             }
-                            node.setOnMouseReleased(null);
+                            node.setOnMouseDragReleased(null);
                             node.setOnMouseDragged(null);
                             for (Node nodeToMove : nodesToMove) {
                                 nodeToMove.setViewOrder(0);
