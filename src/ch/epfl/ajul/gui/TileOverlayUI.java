@@ -100,7 +100,7 @@ public final class TileOverlayUI {
                                 }
                             });
 
-                        node.setOnMouseDragReleased( _ -> {
+                        node.setOnMouseReleased( _ -> {
                             for (Node nodeToMove : nodesToMove){
 
                                 if (moveAccepted[0]){
@@ -142,7 +142,7 @@ public final class TileOverlayUI {
 
     public void showTilePoints(TileLocation.OnWall wall, int points) {
         Platform.runLater(() -> {
-            Text pointsText = new Text(Integer.toString(points));
+            Text pointsText = new Text("+" + points);
             pointsText.setViewOrder(-2);
 
             // Position de l'ancre du mur

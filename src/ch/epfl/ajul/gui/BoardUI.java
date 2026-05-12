@@ -97,7 +97,7 @@ public final class BoardUI {
             identity.textProperty().bind(
                     Bindings.format("%s\nPoints : %d",
                         observer.getValue().game().playerDescriptions().get(playerId.ordinal()).name(),
-                        observer.map(gs -> PkPlayerStates.points(gs.pkPlayerStates(), playerId))));
+                        pointsObserver));
 
 
             currentPlayerBoard.getChildren().add(identity);
@@ -235,7 +235,7 @@ public final class BoardUI {
 
             playerBoardGrid.add(currentPlayerBoard, playerId.ordinal()%2, playerId.ordinal()/2);
         }
-        //Mise à jour du bord du pleteau du joueur courant
+        //Mise à jour du bord du plateau du joueur courant
         observer.map(ImmutableGameState::currentPlayerId).subscribe(currentId -> {
             playerBoards.forEach((playerId, pane) -> {
                 if (playerId == currentId)
