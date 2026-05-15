@@ -35,7 +35,6 @@ public final class MctsPlayer implements Player {
         MctsNode[] nodeArray = new MctsNode[256];
 
         MctsNode root = MctsNode.newRoot();
-        RandomGenerator fixedGenerator = randomGeneratorFactory.create(42);
         RandomGenerator endGameGenerator = randomGeneratorFactory.create(gameState.pkTileBag());
 
         for (int i = 0; i < iterationCount; i++){
@@ -66,7 +65,7 @@ public final class MctsPlayer implements Player {
 
                 if (mutableGameState.isRoundOver()) {
                     mutableGameState.endRound();
-                    mutableGameState.fillFactories(fixedGenerator);
+                    mutableGameState.fillFactories(randomGeneratorFactory.create(currentNode.pkMove()));
                 }
             }
 

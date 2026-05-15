@@ -1,5 +1,5 @@
 package ch.epfl.ajul.gui;
-
+import ch.epfl.ajul.Points;
 import ch.epfl.ajul.TileKind;
 import ch.epfl.ajul.TileSource;
 import ch.epfl.ajul.gamestate.ImmutableGameState;
@@ -14,8 +14,8 @@ import javafx.scene.Node;
 import javafx.scene.layout.Pane;
 import javafx.scene.text.Text;
 import javafx.util.Duration;
-
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 
@@ -23,14 +23,18 @@ public final class TileOverlayUI {
 
 
     private final Pane root;
-    private final Tiles tiles;
-    private final ObservableValue<ImmutableGameState> observer;
+    private final Map<TileLocation, Node> anchors;
 
-    private TileOverlayUI(Pane root, Tiles tiles, ObservableValue<ImmutableGameState> observer){
+    private static final Point2D OFFBOARD_POSITION = new Point2D(-Tiles.TILE_WIDTH, -Tiles.TILE_HEIGHT);
+
+    private TileOverlayUI(Pane root,  Map<TileLocation, Node> anchors){
         this.root = root;
-        this.tiles = tiles;
-        this.observer = observer;
+        this.anchors = anchors;
 
+    }
+
+    public Node root() {
+        return root;
     }
 
     public static TileOverlayUI create(ObservableValue<ImmutableGameState> observer,
@@ -41,35 +45,32 @@ public final class TileOverlayUI {
 
         Pane root = new Pane();
 
-
         Function<TileLocation, Point2D> position = loc -> {
-            if (loc instanceof TileLocation.OffBoard) {
-                return new Point2D(-30, -30);
-            }
             Node anchor = tiles.anchors().get(loc);
             Point2D sceneCoords = anchor.localToScene(0, 0);
-            return root.sceneToLocal(sceneCoords);
+            return loc instanceof TileLocation.OffBoard ? OFFBOARD_POSITION : root.sceneToLocal(sceneCoords);
         };
-
 
         Platform.runLater(() -> observer.subscribe(gameState -> {
             Animation animation = TileAnimator.animateTiles(position, tiles.tiles(), gameState);
             animation.play();
         }));
 
-        for (TileKind tileKind : TileKind.ALL){
-            int i = 0;
+        tiles.tiles().forEach((tileKind, nodes) -> {
 
-            for (Node node : tiles.tiles().get(tileKind)) {
-                node.setViewOrder(0);
-                root.getChildren().add(node);
-                Tiles.setLocation(node, new TileLocation.OffBoard(tileKind, i++));
-                node.relocate(-30, -30);
+            root.getChildren().addAll(nodes);
+            for (int i = 0; i < nodes.size(); i++) {
+                Node node = nodes.get(i);
+
+                node.setViewOrder(0); // À supprimer ?
+                Tiles.setLocation(node, new TileLocation.OffBoard(tileKind, i));
+                node.relocate(OFFBOARD_POSITION.getX(), OFFBOARD_POSITION.getY());
                 if (tileKind instanceof TileKind.Colored){
                     node.setOnMousePressed(e -> e.setDragDetect(true));
                     node.setOnDragDetected(e -> {
                         TileLocation loc = Tiles.location(node);
-                        if (!(loc instanceof TileLocation.OnSource) || validMoves.isEmpty()) return;
+                        if (validMoves.isEmpty() || !(loc instanceof TileLocation.OnSource) ) return;
+
                         TileSource source = ((TileLocation.OnSource) loc).tileSource();
                         potentialMoves.clear();
                         for (Move move: validMoves) {
@@ -130,34 +131,27 @@ public final class TileOverlayUI {
                     });
                 }
             }
-        }
+        });
 
-        return new TileOverlayUI(root, tiles, observer);
+
+        return new TileOverlayUI(root, tiles.anchors());
     }
 
-
-    public Node root() {
-        return root;
-    }
 
     public void showTilePoints(TileLocation.OnWall wall, int points) {
         Platform.runLater(() -> {
             Text pointsText = new Text("+" + points);
             pointsText.setViewOrder(-2);
 
-            // Position de l'ancre du mur
-            Node anchor = tiles.anchors().get(wall);
-            Point2D sceneCoords = anchor.localToScene(0, 0);
-            Point2D paneCoords = root.sceneToLocal(sceneCoords);
-
-            // Centrer le texte sur la tuile
+            // Centrage du texte
             Bounds textSize = pointsText.getBoundsInLocal();
-            double centerX = paneCoords.getX() + (Tiles.TILE_WIDTH - textSize.getWidth()) / 2;
-            double centerY = paneCoords.getY() + (Tiles.TILE_HEIGHT + textSize.getHeight()) / 2;
-            pointsText.setX(centerX);
-            pointsText.setY(centerY);
+            double centerX =  (Tiles.TILE_WIDTH - textSize.getWidth()) / 2;
+            double centerY = (Tiles.TILE_HEIGHT - textSize.getHeight()) / 2;
 
-            root.getChildren().add(pointsText);
+            Point2D anchorPos = root.sceneToLocal(anchors.get(wall).localToScene(Point2D.ZERO));
+            pointsText.relocate(anchorPos.getX() + centerX, anchorPos.getY() + centerY);
+
+            Platform.runLater(() -> root.getChildren().add(pointsText));
         });
     }
 

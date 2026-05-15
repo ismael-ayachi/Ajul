@@ -35,11 +35,6 @@ public final class MctsNode {
         return packedMove >> COUNTER_OFFSET;
     }
 
-   /* public int totalPoints() {  //À supprimer selon l'étape 11
-        return totalPoints;
-    }
-    */
-
     public double averagePoints() {
         assert isValid(gameCount());
         return (double) totalPoints / gameCount();

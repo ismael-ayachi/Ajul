@@ -29,6 +29,7 @@ import static ch.epfl.ajul.Game.PlayerDescription.PlayerKind.AI;
 import static ch.epfl.ajul.Game.PlayerDescription.PlayerKind.HUMAN;
 
 public final class Main extends Application {
+
     static void main(String[] args) {
         launch(args);
     }
@@ -88,13 +89,36 @@ public final class Main extends Application {
         Parent root = new StackPane(boardUI.root(),
                 tileOverlayUI.root());
 
-        MutableGameState gameState = new MutableGameState(ImmutableGameState.initial(game));
-        gameState.fillFactories(rng);
-        ImmutableGameState immutableGameState = gameState.immutable();
-
-        Platform.runLater(() -> gameStateP.set(immutableGameState));
-
         Thread.startVirtualThread(() -> {
+            PointsObserver pointsObserver = new PointsObserver() {
+                @Override
+                public void newWallTile(PlayerId playerId, TileDestination.Pattern line,
+                                        TileKind.Colored color, int points) {
+                    tileOverlayUI.showTilePoints(new TileLocation.OnWall(playerId, line, color), points);
+                }
+
+                @Override
+                public void fullRow(PlayerId playerId, TileDestination.Pattern line, int points) {
+                    Platform.runLater(() -> boardUI.showBonusPoints(playerId, line));
+                }
+
+                @Override
+                public void fullColumn(PlayerId playerId, int column, int points) {
+                    Platform.runLater(() -> boardUI.showBonusPoints(playerId, column));
+                }
+
+                @Override
+                public void fullColor(PlayerId playerId, TileKind.Colored color, int points) {
+                    Platform.runLater(() -> boardUI.showBonusPoints(playerId, color));
+                }
+            };
+
+            MutableGameState gameState = new MutableGameState(ImmutableGameState.initial(game), pointsObserver);
+            gameState.fillFactories(rng);
+            ImmutableGameState immutableGameState = gameState.immutable();
+            Platform.runLater(() -> gameStateP.set(immutableGameState));
+
+
             // Créer les instances MctsPlayer pour les joueurs IA
             Map<PlayerId, Player> aiPlayers = new HashMap<>();
             for (int i = 0; i < playersCount; i++) {
@@ -104,6 +128,7 @@ public final class Main extends Application {
                             new MctsPlayer(RandomGeneratorFactory.getDefault(), 10000));
                 }
             }
+
 
             while (!gameState.isGameOver()) {
                 PlayerId current = gameState.currentPlayerId();
@@ -150,29 +175,6 @@ public final class Main extends Application {
                     ImmutableGameState stateAfterEnd = gameState.immutable();
                     Platform.runLater(() -> gameStateP.set(stateAfterEnd));
 
-                    // Pour chaque joueur, trouver les tuiles nouvellement placées sur le mur
-                    for (PlayerId playerId : stateAfterEnd.playerIds()) {
-                        int wallBefore = PkPlayerStates.pkWall(stateBeforeEnd.pkPlayerStates(), playerId);
-                        int wallAfter  = PkPlayerStates.pkWall(stateAfterEnd.pkPlayerStates(), playerId);
-                        for (TileDestination.Pattern line : TileDestination.Pattern.ALL) {
-                            for (TileKind.Colored color : TileKind.Colored.ALL) {
-
-                                if (!PkWall.hasTileAt(wallBefore, line, color)
-                                        && PkWall.hasTileAt(wallAfter, line, color)) {
-                                    int hPoints = PkWall.hGroupSize(wallAfter, line, color);
-                                    int vPoins = PkWall.vGroupSize(wallAfter, line, color);
-                                    int points = (hPoints == 1 && vPoins == 1)
-                                            ? 1
-                                            : (hPoints > 1 ? hPoints : 0) + (vPoins > 1 ? vPoins : 0);
-
-                                    TileLocation.OnWall wall =  new TileLocation.OnWall(playerId, line, color);
-                                    tileOverlayUI.showTilePoints(wall, points);
-                                }
-                            }
-                        }
-                    }
-
-
                     if (!gameState.isGameOver()) {
                         //Sleep
                         try {
@@ -182,6 +184,9 @@ public final class Main extends Application {
                         }
 
                         gameState.fillFactories(rng);
+
+                        ImmutableGameState stateNewRound = gameState.immutable();
+                        Platform.runLater(() -> gameStateP.set(stateNewRound));
                     }
                 }
             }
@@ -189,33 +194,13 @@ public final class Main extends Application {
             gameState.endGame();
         });
 
-        /*Platform.runLater(() -> {
-            MutableGameState gameState =
-                    new MutableGameState(initialGameState);
-            gameState.fillFactories(rng);
-            ImmutableGameState immutableGameState =
-                    gameState.immutable();
-
-            short[] validMovesArray = new short[Move.MAX_MOVES];
-            int count = immutableGameState.validMoves(validMovesArray);
-            for (int i = 0; i < count; i++) {
-                validMoves.add(Move.ofPacked(validMovesArray[i]));
-            }
-
-            gameStateP.set(immutableGameState);
-        });
-         */
-
         root.getStylesheets().add("ajul.css");
         primaryStage.setScene(new Scene(root));
         primaryStage.setTitle("Ajul");
         primaryStage.setResizable(false);
         primaryStage.show();
 
-
-
     }
-
 
 }
 

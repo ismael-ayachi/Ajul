@@ -228,7 +228,7 @@ public final class BoardUI {
                 Node anchor = anchors.get(new TileLocation.OnFloor(playerId, i));
                 floorPositions.getChildren().add(anchor);
 
-                Text penalty = new Text(Integer.toString(Points.floorPenalty(i)));
+                Text penalty = new Text("-" + Points.floorPenalty(i));
                 floorPositions.getChildren().add(penalty);
                 floor.getChildren().add(floorPositions);
             }
