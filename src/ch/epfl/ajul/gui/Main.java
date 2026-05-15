@@ -17,7 +17,6 @@ import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 
 import java.nio.charset.StandardCharsets;
-import java.security.KeyStore;
 import java.security.SecureRandom;
 import java.util.*;
 import java.util.concurrent.BlockingQueue;
@@ -30,7 +29,7 @@ import static ch.epfl.ajul.Game.PlayerDescription.PlayerKind.HUMAN;
 
 public final class Main extends Application {
 
-    static void main(String[] args) {
+    public static void main(String[] args) {
         launch(args);
     }
 
