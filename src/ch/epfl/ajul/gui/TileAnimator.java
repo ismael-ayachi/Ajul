@@ -29,7 +29,7 @@ import java.util.function.Function;
 
             ParallelTransition parallelTransition = new ParallelTransition();
 
-            for (TileKind tileKind : TileKind.ALL) {
+            tiles.forEach((tileKind, nodes) -> {
 
                 Partition demand = new Partition(
                         new ArrayList<>(),
@@ -61,33 +61,32 @@ import java.util.function.Function;
                     sourceIndex++;
                 }
 
+                // Tuiles des joueurs
                 for (PlayerId playerId : gameState.playerIds()) {
-                    for (TileDestination.Pattern line : TileDestination.Pattern.ALL) {
-                        int pattern = PkPlayerStates.pkPatterns(gameState.pkPlayerStates(), playerId);
 
-                        if (tileKind instanceof TileKind.Colored colored) {
-                            // Ligne de motif : uniquement si la couleur correspond
-                            if (PkPatterns.size(pattern, line) > 0
-                                    && PkPatterns.color(pattern, line).equals(colored)) {
-                                for (int i = 0; i < PkPatterns.size(pattern, line); i++) {
-                                    demand.pattern().add(new TileLocation.OnPattern(playerId, line, i));
-                                }
-                            }
-
-                            // Mur : uniquement la case de cette couleur
-                            int wall = PkPlayerStates.pkWall(gameState.pkPlayerStates(), playerId);
-                            if (PkWall.hasTileAt(wall, line, colored)) {
-                                demand.wall().add(new TileLocation.OnWall(playerId, line, colored));
-                            }
+                    // Plancher : uniquement les tuiles du tileKind actuel
+                    int floor = PkPlayerStates.pkFloor(gameState.pkPlayerStates(), playerId);
+                    for (int i = 0; i < PkFloor.size(floor); i++) {
+                        if (PkFloor.tileAt(floor, i).equals(tileKind)) { //== au lieu de .equals ?
+                            demand.floor().add(new TileLocation.OnFloor(playerId, i));
                         }
                     }
 
-                    // Plancher : uniquement les tuiles du tileKind courant
-                    int floor = PkPlayerStates.pkFloor(gameState.pkPlayerStates(), playerId);
-                    for (int i = 0; i < PkFloor.size(floor); i++) {
-                        if (PkFloor.tileAt(floor, i).equals(tileKind)) {
-                            demand.floor().add(new TileLocation.OnFloor(playerId, i));
+                    if (tileKind instanceof TileKind.Colored colored) {
+
+                        // Lignes de motifs : uniquement si la couleur correspond
+                        int pattern = PkPlayerStates.pkPatterns(gameState.pkPlayerStates(), playerId);
+                        for (TileDestination.Pattern line : TileDestination.Pattern.ALL) {
+                            if (PkPatterns.canContain(pattern, line, colored))  //Utiliser size > 0 && color equals ?
+                                for (int i = 0; i < PkPatterns.size(pattern, line); i++)
+                                    demand.pattern().add(new TileLocation.OnPattern(playerId, line, i));
                         }
+
+                        // Mur : uniquement la case de cette couleur
+                        int wall = PkPlayerStates.pkWall(gameState.pkPlayerStates(), playerId);
+                        for (TileDestination.Pattern line : TileDestination.Pattern.ALL)
+                            if (PkWall.hasTileAt(wall, line, colored))
+                                demand.wall().add(new TileLocation.OnWall(playerId, line, colored));
                     }
                 }
 
@@ -99,7 +98,7 @@ import java.util.function.Function;
                 }
 
                 // Calcul de l'offre pour ce tileKind uniquement
-                for (Node node : tiles.get(tileKind)) {
+                for (Node node : nodes) {
                     TileLocation loc = Tiles.location(node);
                     switch (loc) {
                         case TileLocation.OnWall onWall -> {
@@ -122,6 +121,7 @@ import java.util.function.Function;
                             if (demand.offBoard().contains(offBoard)) demand.offBoard().remove(offBoard);
                             else supply.offBoard().add(offBoard);
                         }
+                        default -> {}
                     }
                 }
 
@@ -197,25 +197,6 @@ import java.util.function.Function;
                     pairings.put(remainingSupply.get(i), remainingDemand.get(i));
                 }
 
-                // Construction de l'animation
-              /*  for (Map.Entry<TileLocation, TileLocation> entry : pairings.entrySet()) {
-                    TileLocation supplyLoc = entry.getKey();
-                    TileLocation demandLoc = entry.getValue();
-
-                    Node node = tiles.get(tileKind).stream()
-                            .filter(n -> Tiles.location(n).equals(supplyLoc))
-                            .findFirst()
-                            .orElseThrow();
-
-                    Point2D destination = position.apply(demandLoc);
-                    parallelTransition.getChildren().add(
-                            new RelocationTransition(node, destination, Duration.millis(500)));
-
-
-                    Tiles.setLocation(node, demandLoc);
-                }
-
-               */
                 // D'abord, trouve tous les nodes AVANT de modifier quoi que ce soit
                 Map<TileLocation, Node> supplyNodes = new HashMap<>();
                 for (TileLocation supplyLoc : pairings.keySet()) {
@@ -242,7 +223,7 @@ import java.util.function.Function;
                             new RelocationTransition(node, destination, Duration.millis(500)));
                 }
 
-            }
+            });
 
             return parallelTransition;
 

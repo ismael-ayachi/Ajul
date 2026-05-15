@@ -24,13 +24,18 @@ public final class TileOverlayUI {
 
     private final Pane root;
     private final Map<TileLocation, Node> anchors;
-
     private static final Point2D OFFBOARD_POSITION = new Point2D(-Tiles.TILE_WIDTH, -Tiles.TILE_HEIGHT);
+
+    private enum Layer {
+        STILL, MOVING, POINTS;
+        public void order(Node node) {
+            node.setViewOrder(-ordinal());
+        }
+    }
 
     private TileOverlayUI(Pane root,  Map<TileLocation, Node> anchors){
         this.root = root;
         this.anchors = anchors;
-
     }
 
     public Node root() {
@@ -45,9 +50,10 @@ public final class TileOverlayUI {
 
         Pane root = new Pane();
 
+        //Méthode auxiliaire => pas forcément nécessaire
         Function<TileLocation, Point2D> position = loc -> {
             Node anchor = tiles.anchors().get(loc);
-            Point2D sceneCoords = anchor.localToScene(0, 0);
+            Point2D sceneCoords = anchor.localToScene(Point2D.ZERO);
             return loc instanceof TileLocation.OffBoard ? OFFBOARD_POSITION : root.sceneToLocal(sceneCoords);
         };
 
@@ -62,7 +68,7 @@ public final class TileOverlayUI {
             for (int i = 0; i < nodes.size(); i++) {
                 Node node = nodes.get(i);
 
-                node.setViewOrder(0); // À supprimer ?
+               // node.setViewOrder(0); // À supprimer ?
                 Tiles.setLocation(node, new TileLocation.OffBoard(tileKind, i));
                 node.relocate(OFFBOARD_POSITION.getX(), OFFBOARD_POSITION.getY());
                 if (tileKind instanceof TileKind.Colored){
@@ -73,28 +79,28 @@ public final class TileOverlayUI {
 
                         TileSource source = ((TileLocation.OnSource) loc).tileSource();
                         potentialMoves.clear();
-                        for (Move move: validMoves) {
+                        //Assert potentialMoves ?
+                        for (Move move: validMoves) { //Utiliser un stream ?
                             if (move.source().equals(source) && move.tileColor().equals(tileKind))
                                 potentialMoves.add(move);
                         }
+                        //Assert potentialMoves ?
                         node.startFullDrag();
                         root.setMouseTransparent(true);
-                        List<Node> nodesToMove = tiles.tiles().get(tileKind).stream()
+
+                        List<Node> nodesToMove = nodes.stream()
                                 .filter(n -> {
                                     TileLocation currentLoc = Tiles.location(n);
                                     return currentLoc instanceof TileLocation.OnSource onSource
                                             && onSource.tileSource().equals(source);
                                 })
                                 .toList();
-                        for (Node nodeMove: nodesToMove){
-                            nodeMove.setViewOrder(-1);
-                        }
 
-                        double initPosX = e.getSceneX();
-                        double initPosY = e.getSceneY();
+                        for (Node nodeToMove: nodesToMove) Layer.MOVING.order(nodeToMove);
+
                         node.setOnMouseDragged(de -> {
-                            double dx = de.getSceneX() - initPosX;
-                            double dy = de.getSceneY() - initPosY;
+                            double dx = de.getSceneX() - e.getSceneX();
+                            double dy = de.getSceneY() - e.getSceneY();
                             for (Node nodeToMove: nodesToMove){
                                 nodeToMove.setTranslateX(dx);
                                 nodeToMove.setTranslateY(dy);
@@ -103,7 +109,6 @@ public final class TileOverlayUI {
 
                         node.setOnMouseReleased( _ -> {
                             for (Node nodeToMove : nodesToMove){
-
                                 if (moveAccepted[0]){
                                     nodeToMove.setLayoutX(nodeToMove.getLayoutX() + nodeToMove.getTranslateX());
                                     nodeToMove.setLayoutY(nodeToMove.getLayoutY() + nodeToMove.getTranslateY());
@@ -121,9 +126,8 @@ public final class TileOverlayUI {
                             node.setOnMouseDragReleased(null);
                             node.setOnMouseDragged(null);
                             for (Node nodeToMove : nodesToMove) {
-                                nodeToMove.setViewOrder(0);
+                                Layer.STILL.order(nodeToMove);
                             }
-
                             moveAccepted[0] = false;
                             root.setMouseTransparent(false);
 
@@ -133,7 +137,6 @@ public final class TileOverlayUI {
             }
         });
 
-
         return new TileOverlayUI(root, tiles.anchors());
     }
 
@@ -141,13 +144,11 @@ public final class TileOverlayUI {
     public void showTilePoints(TileLocation.OnWall wall, int points) {
         Platform.runLater(() -> {
             Text pointsText = new Text("+" + points);
-            pointsText.setViewOrder(-2);
+            Layer.POINTS.order(pointsText);
 
-            // Centrage du texte
             Bounds textSize = pointsText.getBoundsInLocal();
             double centerX =  (Tiles.TILE_WIDTH - textSize.getWidth()) / 2;
             double centerY = (Tiles.TILE_HEIGHT - textSize.getHeight()) / 2;
-
             Point2D anchorPos = root.sceneToLocal(anchors.get(wall).localToScene(Point2D.ZERO));
             pointsText.relocate(anchorPos.getX() + centerX, anchorPos.getY() + centerY);
 
