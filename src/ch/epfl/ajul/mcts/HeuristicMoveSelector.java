@@ -13,8 +13,6 @@ import java.util.random.RandomGenerator;
 
 public final class HeuristicMoveSelector {
 
-
-
     public static int selectMove(RandomGenerator randomGenerator,
                                  ReadOnlyGameState gameState,
                                  short[] packedMoveArray,
@@ -27,11 +25,10 @@ public final class HeuristicMoveSelector {
         int pattern = PkPlayerStates.pkPatterns(gameState.pkPlayerStates(), gameState.currentPlayerId());
 
         for (int i = 0; i < validMoves; i++){
-            TileKind.Colored color = PkMove.color(packedMoveArray[i]);
             TileDestination destination = PkMove.destination(packedMoveArray[i]);
-            TileSource source = PkMove.source(packedMoveArray[i]);
-
             if (destination instanceof TileDestination.Pattern line) {
+                TileKind.Colored color = PkMove.color(packedMoveArray[i]);
+                TileSource source = PkMove.source(packedMoveArray[i]);
                 int remaining = line.capacity() - PkPatterns.size(pattern, line);
                 int tileCount = PkTileSet.countOf(
                         gameState.pkTileSources().get(source.index()), color);
@@ -47,7 +44,6 @@ public final class HeuristicMoveSelector {
                 //Cas 3 : Autres coups/Les coups qui remplissent une ligne de motif avec des tuiles excédentaires
                 else
                     res3.add(i, randomGenerator);
-
             }
             //Cas 3 : Autres coups/Les coups qui remplissent la ligne plancher
             else res3.add(i, randomGenerator);
@@ -58,23 +54,24 @@ public final class HeuristicMoveSelector {
         return res3.get();
     }
 
-    private static class ReservoirSampler {
-
+    private static final class ReservoirSampler {
         private int count = 0;
         private int res = -1;
 
-        public void add(int move, RandomGenerator rng){
+        private void add(int move, RandomGenerator rng){
             int j = rng.nextInt(count + 1);
             if (j == 0) res = move;
             count++;
+
+            /*count++;
+            if (count == 1 || rng.nextInt(count) == 0) res = move;
+
+             */
+
         }
 
-        public int get(){
+        private int get(){
             return res;
         }
-
     }
-
-
-
 }

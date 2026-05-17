@@ -39,7 +39,7 @@ public final class MctsPlayer implements Player {
 
         for (int i = 0; i < iterationCount; i++){
 
-            MutableGameState mutableGameState = new MutableGameState(gameState, PointsObserver.EMPTY);
+            MutableGameState mutableGameState = new MutableGameState(gameState);
             MctsNode currentNode = root;
             int depth = 0;
 
@@ -47,25 +47,27 @@ public final class MctsPlayer implements Player {
             while (currentNode.gameCount() > 0 && !mutableGameState.isGameOver()){
                 //MctsNode[] childNode = currentNode.childNode;
 
-                if (currentNode.childNode == null){
+                if (currentNode.children == null){
                     int validMovesCount = mutableGameState.uniqueValidMoves(validMoves);
-                    currentNode.childNode = new MctsNode[validMovesCount];
+
+                    currentNode.children = new MctsNode[validMovesCount];
                     for (int j = 0; j < validMovesCount; j++) {
-                        currentNode.childNode[j] = MctsNode.newMoveNode(validMoves[j]);
+                        currentNode.children[j] = MctsNode.newMoveNode(validMoves[j]);
                     }
                 }
 
                 int toExploreIndex = currentNode.indexOfChildToExplore();
                 playerArray[depth] = (byte) mutableGameState.currentPlayerId().ordinal();
-                currentNode = currentNode.childNode[toExploreIndex];
+                currentNode = currentNode.children[toExploreIndex];
                 nodeArray[depth] = currentNode;
                 depth++;
 
-                mutableGameState.registerMove((short) currentNode.pkMove());
+                mutableGameState.registerMove(currentNode.pkMove());
 
                 if (mutableGameState.isRoundOver()) {
                     mutableGameState.endRound();
-                    mutableGameState.fillFactories(randomGeneratorFactory.create(currentNode.pkMove()));
+                    if (!mutableGameState.isGameOver()) // Ajouté
+                        mutableGameState.fillFactories(randomGeneratorFactory.create(currentNode.pkMove()));
                 }
             }
 
@@ -88,8 +90,8 @@ public final class MctsPlayer implements Player {
 
             //Calcul et propagation des points
             RankComputer.playersRank(mutableGameState, playersRank);
+            ReadOnlyIntArray pkPlaterStates = mutableGameState.pkPlayerStates();
             for (int j = 0; j < gameState.game().playersCount(); j++){
-                ReadOnlyIntArray pkPlaterStates = mutableGameState.pkPlayerStates();
                 PlayerId playerId = PlayerId.ALL.get(j);
                 int rankComplement = (mutableGameState.game().playersCount() - 1) - playersRank[j];
                 int points = PkPlayerStates.points(pkPlaterStates, playerId);
@@ -102,11 +104,12 @@ public final class MctsPlayer implements Player {
                 nodeArray[k].registerEvaluation(generalizedPoints[playerIndex]);
             }
             root.registerEvaluation(0);
+
         }
 
         Optional<MctsNode> maxAverageNode =
-                Arrays.stream(root.childNode).max(Comparator.comparingDouble(MctsNode::averagePoints));
+                Arrays.stream(root.children).max(Comparator.comparingDouble(MctsNode::averagePoints));
 
-        return Move.ofPacked((short) maxAverageNode.orElseThrow().pkMove());
+        return Move.ofPacked(maxAverageNode.orElseThrow().pkMove());
     }
 }

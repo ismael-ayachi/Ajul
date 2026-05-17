@@ -16,38 +16,26 @@ public final class RankComputer {
         for (PlayerId playerId : gameState.playerIds()) {
             int points = PkPlayerStates.points(gameState.pkPlayerStates(), playerId);
             int playerWall = PkPlayerStates.pkWall(gameState.pkPlayerStates(), playerId);
-            int weightedPoints = points << POINTS_WEIGHT_OFFSET;
-            int rankScore = weightedPoints | fullRowCount(playerWall);
-            int rankScorePacked = (rankScore << SCORE_OFFSET) | playerId.ordinal();
-            array[playerId.ordinal()] = rankScorePacked;
+            int rankScore = points << POINTS_WEIGHT_OFFSET | fullRowCount(playerWall);
+            array[playerId.ordinal()] = (rankScore << SCORE_OFFSET) | playerId.ordinal();
         }
 
         Arrays.sort(array);
-        //Tri par ordre décroissant
-        for (int i = 0; i < array.length/2 ; i++) {
-            int tmp = array[i];
-            array[i] = array[(array.length - i) - 1];
-            array[(array.length - i) - 1] = tmp;
+
+        // Calcul des rangs des joueurs
+        int[] playersRank = new int[array.length];
+        int previousScore = -1, previousRank = 0;
+        for (int i = 0; i < array.length; i++) {
+            int index = array.length - 1 - i;
+            int score = array[index] >> SCORE_OFFSET;
+            int rank = (score == previousScore) ? previousRank : i;
+            int playerIndex = array[index] & PLAYER_ID_MASK;
+            playersRank[playerIndex] = rank;
+            previousScore = score;
+            previousRank = rank;
         }
 
-        int[] tempArray = Arrays.copyOf(array, array.length);
-
-        //On place les rangs dans la liste
-        int previousScore = array[0];
-        array[0] = 0;
-        for (int i = 1; i < array.length; i++) {
-            int currentScore = array[i];
-            array[i] = (currentScore >> SCORE_OFFSET == previousScore >> SCORE_OFFSET) ? array[i - 1] : i;
-            previousScore = currentScore;
-        }
-
-        //On associe à chaque joueur (dans l'ordre) son rang
-        int[] result = new int[tempArray.length];
-        for (int i = 0; i < tempArray.length; i++){
-            int playerIndex = tempArray[i] & PLAYER_ID_MASK;
-            result[playerIndex] = array[i];
-        }
-        System.arraycopy(result, 0, array, 0, array.length);
+        System.arraycopy(playersRank, 0, array, 0, array.length);
 
     }
 
