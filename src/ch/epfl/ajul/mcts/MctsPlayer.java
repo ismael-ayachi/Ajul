@@ -2,7 +2,6 @@ package ch.epfl.ajul.mcts;
 
 import ch.epfl.ajul.Player;
 import ch.epfl.ajul.PlayerId;
-import ch.epfl.ajul.PointsObserver;
 import ch.epfl.ajul.RankComputer;
 import ch.epfl.ajul.gamestate.Move;
 import ch.epfl.ajul.gamestate.MutableGameState;
@@ -17,7 +16,6 @@ import java.util.random.RandomGeneratorFactory;
 
 public final class MctsPlayer implements Player {
 
-
     private final RandomGeneratorFactory<RandomGenerator> randomGeneratorFactory;
     private final int iterationCount;
 
@@ -31,8 +29,8 @@ public final class MctsPlayer implements Player {
         short[] validMoves = new short[Move.MAX_MOVES];
         int[] playersRank = new int[gameState.game().playersCount()]; //Passé à playersRank de RankComputer
         int[] generalizedPoints = new int[gameState.game().playersCount()];
-        byte[] playerArray = new byte[256];
-        MctsNode[] nodeArray = new MctsNode[256];
+        byte[] playerAtDepth = new byte[32];
+        MctsNode[] nodeAtDepth = new MctsNode[32];
 
         MctsNode root = MctsNode.newRoot();
         RandomGenerator endGameGenerator = randomGeneratorFactory.create(gameState.pkTileBag());
@@ -45,8 +43,6 @@ public final class MctsPlayer implements Player {
 
             //Sélection
             while (currentNode.gameCount() > 0 && !mutableGameState.isGameOver()){
-                //MctsNode[] childNode = currentNode.childNode;
-
                 if (currentNode.children == null){
                     int validMovesCount = mutableGameState.uniqueValidMoves(validMoves);
 
@@ -57,9 +53,13 @@ public final class MctsPlayer implements Player {
                 }
 
                 int toExploreIndex = currentNode.indexOfChildToExplore();
-                playerArray[depth] = (byte) mutableGameState.currentPlayerId().ordinal();
+                if (depth == nodeAtDepth.length) {
+                    nodeAtDepth = Arrays.copyOf(nodeAtDepth,   nodeAtDepth.length << 1);
+                    playerAtDepth = Arrays.copyOf(playerAtDepth, playerAtDepth.length << 1);
+                }
+                playerAtDepth[depth] = (byte) mutableGameState.currentPlayerId().ordinal();
                 currentNode = currentNode.children[toExploreIndex];
-                nodeArray[depth] = currentNode;
+                nodeAtDepth[depth] = currentNode;
                 depth++;
 
                 mutableGameState.registerMove(currentNode.pkMove());
@@ -83,7 +83,6 @@ public final class MctsPlayer implements Player {
                     if (!mutableGameState.isGameOver()){
                         mutableGameState.fillFactories(endGameGenerator);
                     }
-
                 }
             }
             mutableGameState.endGame();
@@ -99,12 +98,11 @@ public final class MctsPlayer implements Player {
                 generalizedPoints[j] = generalized;
             }
 
-            for (int k = depth - 1 ; k >= 0; k--){
-                byte playerIndex = playerArray[k];
-                nodeArray[k].registerEvaluation(generalizedPoints[playerIndex]);
-            }
             root.registerEvaluation(0);
-
+            for (int k = depth - 1 ; k >= 0; k--){
+                byte playerIndex = playerAtDepth[k];
+                nodeAtDepth[k].registerEvaluation(generalizedPoints[playerIndex]);
+            }
         }
 
         Optional<MctsNode> maxAverageNode =

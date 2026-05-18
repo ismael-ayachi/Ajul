@@ -124,10 +124,9 @@ public final class Main extends Application {
                 if (playerDescriptions.get(i).kind() == Game.PlayerDescription.PlayerKind.AI) {
                     aiPlayers.put(
                             PlayerId.ALL.get(i),
-                            new MctsPlayer(RandomGeneratorFactory.getDefault(), 100000));
+                            new MctsPlayer(RandomGeneratorFactory.getDefault(), 10000));
                 }
             }
-
 
             while (!gameState.isGameOver()) {
                 PlayerId current = gameState.currentPlayerId();

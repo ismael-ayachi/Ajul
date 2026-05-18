@@ -10,7 +10,8 @@ public sealed interface TileLocation {
     record OffBoard(TileKind tileKind, int index) implements TileLocation {}
     record OnSource(TileSource tileSource, int index) implements TileLocation {}
     record OnPattern(PlayerId playerId, TileDestination.Pattern pattern, int index) implements TileLocation {}
-    record OnWall(PlayerId playerId, TileDestination.Pattern pattern, TileKind.Colored tileKind) implements TileLocation {}
+    record OnWall(PlayerId playerId, TileDestination.Pattern pattern, TileKind.Colored tileKind)
+            implements TileLocation {}
     record OnFloor(PlayerId playerId, int index) implements TileLocation {}
 
 }

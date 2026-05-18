@@ -18,9 +18,18 @@ import java.util.concurrent.BlockingQueue;
 
 public final class BoardUI {
 
-
     private final Node root;
     Map<AbstractMap.SimpleEntry<PlayerId, Object>, Text> bonusMap;
+
+    private static final String TILE_SOURCE_CLASS = "tile-source";
+    private static final String TILE_GROUP_CLASS = "tile-group";
+    private static final String TILE_DESTINATION_CLASS = "tile-destination";
+    private static final String ACCEPTING_CLASS = "accepting";
+    private static final String LINES_AND_WALL_CLASS = "lines-and-wall";
+    private static final String WALL_BACKGROUND_CLASS = "wall-background";
+    private static final String CURRENT_PLAYER_CLASS = "current-player";
+    private static final String FLOOR_CLASS = "floor";
+    private static final String PLAYER_BOARD_CLASS = "player-board";
 
     private BoardUI(Node root, Map<AbstractMap.SimpleEntry<PlayerId, Object>, Text> bonusMap){
         this.root = root;
@@ -52,7 +61,7 @@ public final class BoardUI {
         //Fabriques
         for (TileSource factory : observer.getValue().game().factories()) {
             HBox factoryBox = new HBox();
-            factoryBox.getStyleClass().addAll("tile-group", "tile-source");
+            factoryBox.getStyleClass().addAll(TILE_GROUP_CLASS, TILE_SOURCE_CLASS);
 
             for (int i = 0; i < TileSource.Factory.TILES_PER_FACTORY; i++) {
                 Node anchor = anchors.get(new TileLocation.OnSource(factory, i));
@@ -65,7 +74,7 @@ public final class BoardUI {
 
         //Zone centrale
         GridPane centerGrid = new GridPane();
-        centerGrid.getStyleClass().addAll("tile-group", "tile-source");
+        centerGrid.getStyleClass().addAll(TILE_GROUP_CLASS, TILE_SOURCE_CLASS);
 
         for (int i = 0; i < observer.getValue().game().centralAreaMaxSize(); i++) {
             Node anchor = anchors.get(new TileLocation.OnSource(TileSource.CENTER_AREA, i));
@@ -85,7 +94,7 @@ public final class BoardUI {
         for (PlayerId playerId: observer.getValue().playerIds()){
             //Plateau du joueur courant
             StackPane currentPlayerBoard = new StackPane();
-            currentPlayerBoard.getStyleClass().addAll("player-board");
+            currentPlayerBoard.getStyleClass().addAll(PLAYER_BOARD_CLASS);
 
             playerBoards.put(playerId, currentPlayerBoard);
 
@@ -110,14 +119,14 @@ public final class BoardUI {
             //Lignes de motif et mur
 
             GridPane patternWall = new GridPane();
-            patternWall.getStyleClass().add("lines-and-wall");
+            patternWall.getStyleClass().add(LINES_AND_WALL_CLASS);
 
             gridContent.getChildren().add(patternWall);
 
             for (int row = 0; row < PkWall.WALL_WIDTH; row++){
 
                 HBox patternBox = new HBox();
-                patternBox.getStyleClass().addAll("tile-destination" , "tile-group");
+                patternBox.getStyleClass().addAll(TILE_DESTINATION_CLASS , TILE_GROUP_CLASS);
 
                 TileDestination.Pattern line = TileDestination.Pattern.ALL.get(row);
 
@@ -126,12 +135,12 @@ public final class BoardUI {
                     boolean canAccept = potentialMoves.stream()
                             .anyMatch(move -> move.destination().equals(line));
                     if (canAccept)
-                        patternBox.getStyleClass().add("accepting");
+                        patternBox.getStyleClass().add(ACCEPTING_CLASS);
                 }));
 
                 patternBox.addEventHandler(
                         MouseDragEvent.MOUSE_DRAG_EXITED,
-                        _ -> patternBox.getStyleClass().remove("accepting"));
+                        _ -> patternBox.getStyleClass().remove(ACCEPTING_CLASS));
 
                 patternBox.addEventHandler(MouseDragEvent.MOUSE_DRAG_RELEASED, _ -> {
                     boolean canAccept = potentialMoves.stream()
@@ -140,7 +149,7 @@ public final class BoardUI {
                             move -> move.destination().equals(line)).findFirst().orElse(null);
                     if (canAccept && moveQueue.offer(Objects.requireNonNull(moveFound))){
                         moveAccepted[0] = true;
-                        patternBox.getStyleClass().remove("accepting");
+                        patternBox.getStyleClass().remove(ACCEPTING_CLASS);
                     }
                 });
 
@@ -173,7 +182,7 @@ public final class BoardUI {
                                     playerId,
                                     TileDestination.Pattern.ALL.get(row),
                                     PkWall.colorAt(TileDestination.Pattern.ALL.get(row), col-2)));
-                    anchor.getStyleClass().addAll("wall-background",
+                    anchor.getStyleClass().addAll(WALL_BACKGROUND_CLASS,
                             PkWall.colorAt(TileDestination.Pattern.ALL.get(row), col-2).toString());
                     patternWall.add(anchor, col, row);
 
@@ -195,18 +204,18 @@ public final class BoardUI {
 
             //Ligne plancher
             HBox floor = new HBox();
-            floor.getStyleClass().addAll("floor", "tile-group", "tile-destination");
+            floor.getStyleClass().addAll(FLOOR_CLASS, TILE_GROUP_CLASS, TILE_DESTINATION_CLASS);
             gridContent.getChildren().add(floor);
 
             floor.addEventHandler(MouseDragEvent.MOUSE_DRAG_ENTERED, _ -> {
                 boolean canAccept = potentialMoves.stream()
                         .anyMatch(move -> move.destination().equals(TileDestination.FLOOR));
                 if (canAccept)
-                    floor.getStyleClass().add("accepting");
+                    floor.getStyleClass().add(ACCEPTING_CLASS);
             });
 
             floor.addEventHandler(MouseDragEvent.MOUSE_DRAG_EXITED,
-                    _ -> floor.getStyleClass().remove("accepting"));
+                    _ -> floor.getStyleClass().remove(ACCEPTING_CLASS));
 
             floor.addEventHandler(MouseDragEvent.MOUSE_DRAG_RELEASED, _ -> {
                 boolean canAccept = potentialMoves.stream()
@@ -216,7 +225,7 @@ public final class BoardUI {
                         .findFirst().orElse(null);
                 if (canAccept && moveQueue.offer(Objects.requireNonNull(moveFound))) {
                     moveAccepted[0] = true;
-                    floor.getStyleClass().remove("accepting");
+                    floor.getStyleClass().remove(ACCEPTING_CLASS);
                 }
             });
 
@@ -239,9 +248,9 @@ public final class BoardUI {
         observer.map(ImmutableGameState::currentPlayerId).subscribe(currentId -> {
             playerBoards.forEach((playerId, pane) -> {
                 if (playerId == currentId)
-                    pane.getStyleClass().add("current-player");
+                    pane.getStyleClass().add(CURRENT_PLAYER_CLASS);
                 else
-                    pane.getStyleClass().remove("current-player");
+                    pane.getStyleClass().remove(CURRENT_PLAYER_CLASS);
             });
         });
 

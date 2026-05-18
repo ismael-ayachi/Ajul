@@ -17,11 +17,11 @@ public record Tiles(Map<TileLocation, Node> anchors, Map<TileKind, List<Node>> t
     public static final int TILE_HEIGHT = 30;
 
     public static Tiles create(Game game) {
-        Map<TileLocation, Node> newAnchors = new HashMap<>();
-        putInAnchor(newAnchors, game);
-        Map<TileKind, List<Node>> newTiles = new HashMap<>();
-        putInTiles(newTiles);
-        return new Tiles(newAnchors, newTiles);
+        Map<TileLocation, Node> anchors = new HashMap<>(); //Map immuable à ajouter ?
+        putInAnchor(anchors, game);
+        Map<TileKind, List<Node>> tiles = new HashMap<>(); //Map immuable à ajouter ?
+        putInTiles(tiles);
+        return new Tiles(anchors, tiles);
     }
 
     public static TileLocation location(Node node){
@@ -44,7 +44,6 @@ public record Tiles(Map<TileLocation, Node> anchors, Map<TileKind, List<Node>> t
             marker.getStyleClass().add("tile");
             StackPane markerTile = new StackPane(marker, new Text("1"));
             markerTile.setId("first-player-marker");
-            markerTile.getStyleClass().add("tile");
             return markerTile;
         }
     }
@@ -52,7 +51,6 @@ public record Tiles(Map<TileLocation, Node> anchors, Map<TileKind, List<Node>> t
     private static Node createAnchor() {
         Rectangle anchor = new Rectangle(TILE_WIDTH, TILE_HEIGHT);
         anchor.getStyleClass().addAll("tile", "anchor");
-        //setLocation(anchor, tileLocation); // À Supprimer d'après étape 11
         return anchor;
     }
 
@@ -63,9 +61,7 @@ public record Tiles(Map<TileLocation, Node> anchors, Map<TileKind, List<Node>> t
                 tileNodes.add(createTile(tileKind));
             }
             tiles.put(tileKind, tileNodes);
-
         }
-
     }
 
     private static void putInAnchor(Map<TileLocation, Node> anchors, Game game) {
@@ -90,72 +86,9 @@ public record Tiles(Map<TileLocation, Node> anchors, Map<TileKind, List<Node>> t
                         .flatMap(line -> IntStream.range(0, PkWall.WALL_WIDTH)
                                 .mapToObj(col -> new TileLocation.OnWall(p, line, PkWall.colorAt(line, col)))));
 
-        Stream<TileLocation> offBoardStream = TileKind.ALL.stream()
-                .flatMap(tileKind -> IntStream.range(0, tileKind.tilesCount())
-                        .mapToObj(i -> new TileLocation.OffBoard(tileKind, i)));
-
-        Stream.of(sourceStream, patternStream, floorStream, wallStream, offBoardStream)
+        Stream.of(sourceStream, patternStream, floorStream, wallStream)
                 .flatMap(s -> s)
                 .forEach(loc -> anchors.put(loc, createAnchor()));
-
-     /*
-        for (TileSource source : game.tileSources()){
-            if (source instanceof TileSource.Factory){
-                for (int i = 0; i < TileSource.Factory.TILES_PER_FACTORY; i++){
-                    TileLocation location = new TileLocation.OnSource(source, i);
-                    anchors.put(location, createAnchor(location));
-                }
-
-            }
-            else {
-                for (int i = 0; i < game.centralAreaMaxSize(); i++){
-                    TileLocation location = new TileLocation.OnSource(source, i);
-                    anchors.put(location, createAnchor(location));
-                }
-            }
-        }
-
-
-        for (TileDestination destination : TileDestination.ALL){
-            if (destination instanceof TileDestination.Pattern){
-                for (PlayerId playerId : game.playerIds()){
-                    for (int capacity = 0; capacity < destination.capacity(); capacity++){
-                        TileLocation location =
-                                new TileLocation.OnPattern(playerId, (TileDestination.Pattern) destination, capacity);
-                        anchors.put(location, createAnchor(location));
-                    }
-
-                }
-            }
-            else {
-                for (PlayerId playerId : game.playerIds()){
-                    for (int i = 0; i < destination.capacity(); i++){
-                        TileLocation location = new TileLocation.OnFloor(playerId, i);
-                        anchors.put(location, createAnchor(location));
-                    }
-                }
-            }
-        }
-
-        for (TileDestination.Pattern wallDestination : TileDestination.Pattern.ALL){
-            for (PlayerId playerId: game.playerIds()){
-                for (int col = 0; col < PkWall.WALL_WIDTH; col++){
-                    TileLocation location = new TileLocation.OnWall(playerId, wallDestination, PkWall.colorAt(wallDestination, col));
-                    anchors.put(location, createAnchor(location));
-                }
-            }
-        }
-
-        for (TileKind tileKind : TileKind.ALL){
-            for (int i = 0; i < tileKind.tilesCount(); i++) {
-                TileLocation location = new TileLocation.OffBoard(tileKind, i);
-                anchors.put(location, createAnchor(location));
-            }
-        }
-    }
-
-
-      */
 
     }
 }

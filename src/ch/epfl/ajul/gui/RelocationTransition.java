@@ -13,9 +13,9 @@ public final class RelocationTransition extends Transition {
 
     public RelocationTransition(Node node, Point2D endPos, Duration duration){
         this.node = node;
+        this.startPos = node.localToParent(Point2D.ZERO);
         this.endPos = endPos;
         setCycleDuration(duration);
-        startPos = node.localToParent(Point2D.ZERO);
     }
 
     @Override

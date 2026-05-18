@@ -53,8 +53,9 @@ public final class TileOverlayUI {
         //Méthode auxiliaire => pas forcément nécessaire
         Function<TileLocation, Point2D> position = loc -> {
             Node anchor = tiles.anchors().get(loc);
-            Point2D sceneCoords = anchor.localToScene(Point2D.ZERO);
-            return loc instanceof TileLocation.OffBoard ? OFFBOARD_POSITION : root.sceneToLocal(sceneCoords);
+            return anchor != null
+                    ? root.sceneToLocal(anchor.localToScene(Point2D.ZERO))
+                    : OFFBOARD_POSITION;
         };
 
         Platform.runLater(() -> observer.subscribe(gameState -> {
