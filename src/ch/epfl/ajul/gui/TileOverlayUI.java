@@ -1,5 +1,4 @@
 package ch.epfl.ajul.gui;
-import ch.epfl.ajul.Points;
 import ch.epfl.ajul.TileKind;
 import ch.epfl.ajul.TileSource;
 import ch.epfl.ajul.gamestate.ImmutableGameState;
@@ -21,9 +20,10 @@ import java.util.function.Function;
 
 public final class TileOverlayUI {
 
-
     private final Pane root;
     private final Map<TileLocation, Node> anchors;
+
+    private static final Duration ANIMATION_DURATION = Duration.seconds( 1d / 8d );
     private static final Point2D OFFBOARD_POSITION = new Point2D(-Tiles.TILE_WIDTH, -Tiles.TILE_HEIGHT);
 
     private enum Layer {
@@ -50,7 +50,6 @@ public final class TileOverlayUI {
 
         Pane root = new Pane();
 
-        //Méthode auxiliaire => pas forcément nécessaire
         Function<TileLocation, Point2D> position = loc -> {
             Node anchor = tiles.anchors().get(loc);
             return anchor != null
@@ -64,19 +63,19 @@ public final class TileOverlayUI {
         }));
 
         tiles.tiles().forEach((tileKind, nodes) -> {
-
             root.getChildren().addAll(nodes);
+
             for (int i = 0; i < nodes.size(); i++) {
                 Node node = nodes.get(i);
 
-               // node.setViewOrder(0); // À supprimer ?
                 Tiles.setLocation(node, new TileLocation.OffBoard(tileKind, i));
                 node.relocate(OFFBOARD_POSITION.getX(), OFFBOARD_POSITION.getY());
+
                 if (tileKind instanceof TileKind.Colored){
                     node.setOnMousePressed(e -> e.setDragDetect(true));
                     node.setOnDragDetected(e -> {
                         TileLocation loc = Tiles.location(node);
-                        if (validMoves.isEmpty() || !(loc instanceof TileLocation.OnSource) ) return;
+                        if (validMoves.isEmpty() || !(loc instanceof TileLocation.OnSource)) return;
 
                         TileSource source = ((TileLocation.OnSource) loc).tileSource();
                         potentialMoves.clear();
@@ -118,19 +117,20 @@ public final class TileOverlayUI {
                                 }
                                 else {
                                     TranslateTransition transition =
-                                            new TranslateTransition(Duration.millis(125), nodeToMove);
+                                            new TranslateTransition(ANIMATION_DURATION, nodeToMove);
                                     transition.setToX(0);
                                     transition.setToY(0);
                                     transition.play();
                                 }
                             }
-                            node.setOnMouseDragReleased(null);
-                            node.setOnMouseDragged(null);
                             for (Node nodeToMove : nodesToMove) {
                                 Layer.STILL.order(nodeToMove);
                             }
+                            node.setOnMouseDragReleased(null);
+                            node.setOnMouseDragged(null);
                             moveAccepted[0] = false;
                             root.setMouseTransparent(false);
+
 
                         });
                     });
@@ -141,21 +141,16 @@ public final class TileOverlayUI {
         return new TileOverlayUI(root, tiles.anchors());
     }
 
-
     public void showTilePoints(TileLocation.OnWall wall, int points) {
         Platform.runLater(() -> {
-            Text pointsText = new Text("+" + points);
+            Text pointsText = new Text("+" + points); //Formatage ?
             Layer.POINTS.order(pointsText);
-
             Bounds textSize = pointsText.getBoundsInLocal();
             double centerX =  (Tiles.TILE_WIDTH - textSize.getWidth()) / 2;
             double centerY = (Tiles.TILE_HEIGHT - textSize.getHeight()) / 2;
             Point2D anchorPos = root.sceneToLocal(anchors.get(wall).localToScene(Point2D.ZERO));
             pointsText.relocate(anchorPos.getX() + centerX, anchorPos.getY() + centerY);
-
             Platform.runLater(() -> root.getChildren().add(pointsText));
         });
     }
-
-
 }

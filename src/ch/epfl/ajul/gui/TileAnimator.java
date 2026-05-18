@@ -26,7 +26,6 @@ import java.util.function.Function;
                                              Map<TileKind, List<Node>> tiles,
                                              ReadOnlyGameState gameState) {
 
-
             ParallelTransition parallelTransition = new ParallelTransition();
 
             tiles.forEach((tileKind, nodes) -> {
@@ -52,7 +51,7 @@ import java.util.function.Function;
                     TileSource tileSource = TileSource.ALL.get(sourceIndex);
                     int offset = 0;
                     for (TileKind tileKind1 : TileKind.ALL){
-                        if (tileKind1.equals(tileKind)) break;
+                        if (tileKind1 == tileKind) break;
                         offset += PkTileSet.countOf(pkTileSource, tileKind1);
                     }
                     for (int j = 0; j < tilesCount; j++) {
@@ -63,7 +62,6 @@ import java.util.function.Function;
 
                 // Tuiles des joueurs
                 for (PlayerId playerId : gameState.playerIds()) {
-
                     // Plancher : uniquement les tuiles du tileKind actuel
                     int floor = PkPlayerStates.pkFloor(gameState.pkPlayerStates(), playerId);
                     for (int i = 0; i < PkFloor.size(floor); i++) {
@@ -73,7 +71,6 @@ import java.util.function.Function;
                     }
 
                     if (tileKind instanceof TileKind.Colored colored) {
-
                         // Lignes de motifs : uniquement si la couleur correspond
                         int pattern = PkPlayerStates.pkPatterns(gameState.pkPlayerStates(), playerId);
                         for (TileDestination.Pattern line : TileDestination.Pattern.ALL) {
@@ -98,29 +95,21 @@ import java.util.function.Function;
                 }
 
                 // Calcul de l'offre pour ce tileKind uniquement
+                Map<TileLocation, Node> nodeAtLocation = new HashMap<>();
+                for (Node n : nodes) nodeAtLocation.put(Tiles.location(n), n);
                 for (Node node : nodes) {
                     TileLocation loc = Tiles.location(node);
                     switch (loc) {
-                        case TileLocation.OnWall onWall -> {
-                            if (demand.wall().contains(onWall)) demand.wall().remove(onWall);
-                            else supply.wall().add(onWall);
-                        }
-                        case TileLocation.OnPattern onPattern -> {
-                            if (demand.pattern().contains(onPattern)) demand.pattern().remove(onPattern);
-                            else supply.pattern().add(onPattern);
-                        }
-                        case TileLocation.OnFloor onFloor -> {
-                            if (demand.floor().contains(onFloor)) demand.floor().remove(onFloor);
-                            else supply.floor().add(onFloor);
-                        }
-                        case TileLocation.OnSource onSource -> {
-                            if (demand.source().contains(onSource)) demand.source().remove(onSource);
-                            else supply.source().add(onSource);
-                        }
-                        case TileLocation.OffBoard offBoard -> {
-                            if (demand.offBoard().contains(offBoard)) demand.offBoard().remove(offBoard);
-                            else supply.offBoard().add(offBoard);
-                        }
+                        case TileLocation.OnWall onWall ->
+                        { if (!demand.wall().remove(onWall)) supply.wall().add(onWall); }
+                        case TileLocation.OnPattern onPattern ->
+                        { if (!demand.pattern().remove(onPattern)) supply.pattern().add(onPattern); }
+                        case TileLocation.OnFloor onFloor ->
+                        { if (!demand.floor().remove(onFloor)) supply.floor().add(onFloor); }
+                        case TileLocation.OnSource onSource ->
+                        { if (!demand.source().remove(onSource)) supply.source().add(onSource); }
+                        case TileLocation.OffBoard offBoard ->
+                        { if (!demand.offBoard().remove(offBoard)) supply.offBoard().add(offBoard); }
                         default -> {}
                     }
                 }
@@ -197,22 +186,12 @@ import java.util.function.Function;
                     pairings.put(remainingSupply.get(i), remainingDemand.get(i));
                 }
 
-                // D'abord, trouve tous les nodes AVANT de modifier quoi que ce soit
-                Map<TileLocation, Node> supplyNodes = new HashMap<>();
-                for (TileLocation supplyLoc : pairings.keySet()) {
-                    Node node = tiles.get(tileKind).stream()
-                            .filter(n -> Tiles.location(n).equals(supplyLoc))
-                            .findFirst()
-                            .orElseThrow();
-                    supplyNodes.put(supplyLoc, node);
-                }
-
                 // Ensuite, crée les animations ET mets à jour les locations
                 for (Map.Entry<TileLocation, TileLocation> entry : pairings.entrySet()) {
                     TileLocation supplyLoc = entry.getKey();
                     TileLocation demandLoc = entry.getValue();
 
-                    Node node = supplyNodes.get(supplyLoc);
+                    Node node = nodeAtLocation.get(supplyLoc);
                     Point2D destination = position.apply(demandLoc);
 
                     // 1. Mettre à jour la location
@@ -226,6 +205,5 @@ import java.util.function.Function;
             });
 
             return parallelTransition;
-
     }
 }

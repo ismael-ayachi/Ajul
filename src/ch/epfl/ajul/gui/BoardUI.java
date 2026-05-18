@@ -15,11 +15,10 @@ import javafx.scene.text.Text;
 import java.util.*;
 import java.util.concurrent.BlockingQueue;
 
-
 public final class BoardUI {
 
     private final Node root;
-    Map<AbstractMap.SimpleEntry<PlayerId, Object>, Text> bonusMap;
+    private final Map<AbstractMap.SimpleEntry<PlayerId, Object>, Text> bonusMap;
 
     private static final String TILE_SOURCE_CLASS = "tile-source";
     private static final String TILE_GROUP_CLASS = "tile-group";
@@ -43,7 +42,7 @@ public final class BoardUI {
                                  boolean[] moveAccepted,
                                  BlockingQueue<Move> moveQueue) {
 
-        //Définit une variable GameState pour à partie statique ???
+        Game game = observer.getValue().game();
 
         //Root
         HBox root = new HBox();
@@ -56,32 +55,27 @@ public final class BoardUI {
         //Table associative pour la visibilité des points bonus
         Map<AbstractMap.SimpleEntry<PlayerId, Object>, Text> bonusMap = new HashMap<>();
 
-
-
         //Fabriques
-        for (TileSource factory : observer.getValue().game().factories()) {
+        for (TileSource.Factory factory : game.factories()) {
             HBox factoryBox = new HBox();
             factoryBox.getStyleClass().addAll(TILE_GROUP_CLASS, TILE_SOURCE_CLASS);
-
             for (int i = 0; i < TileSource.Factory.TILES_PER_FACTORY; i++) {
                 Node anchor = anchors.get(new TileLocation.OnSource(factory, i));
                 factoryBox.getChildren().add(anchor);
             }
             int index = factory.index() - 1; // fabriques commencent à l'index 1
             sourceGrid.add(factoryBox, index % 2, index / 2);
-
         }
 
         //Zone centrale
-        GridPane centerGrid = new GridPane();
-        centerGrid.getStyleClass().addAll(TILE_GROUP_CLASS, TILE_SOURCE_CLASS);
-
-        for (int i = 0; i < observer.getValue().game().centralAreaMaxSize(); i++) {
+        GridPane centerAreaGrid = new GridPane();
+        centerAreaGrid.getStyleClass().addAll(TILE_GROUP_CLASS, TILE_SOURCE_CLASS);
+        for (int i = 0; i < game.centralAreaMaxSize(); i++) {
             Node anchor = anchors.get(new TileLocation.OnSource(TileSource.CENTER_AREA, i));
-            centerGrid.add(anchor, i % 8, i / 8);
+            centerAreaGrid.add(anchor, i % 8, i / 8);
         }
-        int centerRow = (observer.getValue().game().factoriesCount() + 1)/2;
-        sourceGrid.add(centerGrid, 0, centerRow, 2, 1);
+        int centerAreaRow = (game.factoriesCount() + 1) / 2;
+        sourceGrid.add(centerAreaGrid, 0, centerAreaRow, 2, 1);
 
         //Plateaux des joueurs
 
@@ -91,23 +85,20 @@ public final class BoardUI {
 
         Map<PlayerId, StackPane> playerBoards = new HashMap<>();
 
-        for (PlayerId playerId: observer.getValue().playerIds()){
+        for (PlayerId playerId: game.playerIds()){
             //Plateau du joueur courant
             StackPane currentPlayerBoard = new StackPane();
-            currentPlayerBoard.getStyleClass().addAll(PLAYER_BOARD_CLASS);
-
+            currentPlayerBoard.getStyleClass().add(PLAYER_BOARD_CLASS);
             playerBoards.put(playerId, currentPlayerBoard);
 
             //Nom et points des joueurs
-
-            ObservableValue<Integer> pointsObserver = observer.map( gameState ->
+            ObservableValue<Integer> pointsObserver = observer.map(gameState ->
                     PkPlayerStates.points(gameState.pkPlayerStates(), playerId));
             Text identity = new Text();
             identity.textProperty().bind(
                     Bindings.format("%s\nPoints : %d",
-                        observer.getValue().game().playerDescriptions().get(playerId.ordinal()).name(),
+                        game.playerDescriptions().get(playerId.ordinal()).name(),
                         pointsObserver));
-
 
             currentPlayerBoard.getChildren().add(identity);
 
@@ -115,9 +106,7 @@ public final class BoardUI {
             VBox gridContent = new VBox();
             currentPlayerBoard.getChildren().add(gridContent);
 
-
             //Lignes de motif et mur
-
             GridPane patternWall = new GridPane();
             patternWall.getStyleClass().add(LINES_AND_WALL_CLASS);
 
@@ -142,64 +131,48 @@ public final class BoardUI {
                         MouseDragEvent.MOUSE_DRAG_EXITED,
                         _ -> patternBox.getStyleClass().remove(ACCEPTING_CLASS));
 
-                patternBox.addEventHandler(MouseDragEvent.MOUSE_DRAG_RELEASED, _ -> {
-                    boolean canAccept = potentialMoves.stream()
-                            .anyMatch(move -> move.destination().equals(line));
-                    Move moveFound = potentialMoves.stream().filter(
-                            move -> move.destination().equals(line)).findFirst().orElse(null);
-                    if (canAccept && moveQueue.offer(Objects.requireNonNull(moveFound))){
-                        moveAccepted[0] = true;
-                        patternBox.getStyleClass().remove(ACCEPTING_CLASS);
-                    }
-                });
+                patternBox.addEventHandler(MouseDragEvent.MOUSE_DRAG_RELEASED, _ ->
+                        potentialMoves.stream()
+                                .filter(move -> move.destination().equals(line))
+                                .findFirst()
+                                .ifPresent(move -> {
+                                    if (moveQueue.offer(move)) {
+                                        moveAccepted[0] = true;
+                                        patternBox.getStyleClass().remove(ACCEPTING_CLASS);
+                                    }
+                                }));
 
-
-
+                GridPane.setHalignment(patternBox, HPos.RIGHT);
+                GridPane.setFillWidth(patternBox, false);
                 for (int count = 0; count < row + 1; count++) {
-                    Node anchor =
-                            anchors.get(new TileLocation.OnPattern(playerId,TileDestination.Pattern.ALL.get(row), count));
-                    GridPane.setHalignment(patternBox, HPos.RIGHT);
-                    GridPane.setFillWidth(patternBox, false);
+                    Node anchor = anchors.get(new TileLocation.OnPattern(playerId, line, count));
                     patternBox.getChildren().add(anchor);
-
                 }
+
                 patternWall.add(patternBox, 0, row);
-
-                Text fullColorBonus = new Text("+10");
+                Text fullColorBonus = new Text("+" + Points.FULL_COLOR_BONUS_POINTS); //Formatage ?
                 fullColorBonus.setVisible(false);
-
                 patternWall.add(fullColorBonus, 1, row);
 
-
-                for (int col = 2; col < 7 ; col++) {
-
-                    bonusMap.put(new AbstractMap.SimpleEntry<>(
-                            playerId,
-                            PkWall.colorAt(TileDestination.Pattern.ALL.get(row), col - 2)), fullColorBonus);
-
-                    Node anchor = anchors.get(
-                            new TileLocation.OnWall(
-                                    playerId,
-                                    TileDestination.Pattern.ALL.get(row),
-                                    PkWall.colorAt(TileDestination.Pattern.ALL.get(row), col-2)));
-                    anchor.getStyleClass().addAll(WALL_BACKGROUND_CLASS,
-                            PkWall.colorAt(TileDestination.Pattern.ALL.get(row), col-2).toString());
-                    patternWall.add(anchor, col, row);
-
+                for (int col = 0; col < PkWall.WALL_WIDTH ; col++) {
+                    TileKind.Colored color =  PkWall.colorAt(line, col);
+                    bonusMap.put(new AbstractMap.SimpleEntry<>(playerId, color), fullColorBonus);
+                    Node anchor = anchors.get(new TileLocation.OnWall(playerId, line, color));
+                    anchor.getStyleClass().addAll(WALL_BACKGROUND_CLASS, color.toString());
+                    patternWall.add(anchor, col + 2, row);
                 }
-
-                Text fullRowBonus = new Text("+2");
+                Text fullRowBonus = new Text("+" + Points.FULL_ROW_BONUS_POINTS); //Formatage ?
                 fullRowBonus.setVisible(false);
-                bonusMap.put(new AbstractMap.SimpleEntry<>(playerId, TileDestination.Pattern.ALL.get(row)), fullRowBonus);
-                patternWall.add(fullRowBonus, 7, row);
+                bonusMap.put(new AbstractMap.SimpleEntry<>(playerId, line), fullRowBonus);
+                patternWall.add(fullRowBonus, PkWall.WALL_WIDTH + 2, row);
             }
 
-            for (int col = 2; col < 7 ; col++) {
-                Text fullColBonus = new Text("+7");
+            for (int col = 0; col < PkWall.WALL_WIDTH ; col++) {
+                Text fullColBonus = new Text("+" + Points.FULL_COLUMN_BONUS_POINTS); //Formatage ?
                 fullColBonus.setVisible(false);
-                bonusMap.put(new AbstractMap.SimpleEntry<>(playerId, col - 2) , fullColBonus);
+                bonusMap.put(new AbstractMap.SimpleEntry<>(playerId, col) , fullColBonus);
                 GridPane.setHalignment(fullColBonus, HPos.CENTER);
-                patternWall.add(fullColBonus, col, 5);
+                patternWall.add(fullColBonus, col + 2, PkWall.WALL_HEIGHT);
             }
 
             //Ligne plancher
@@ -228,34 +201,23 @@ public final class BoardUI {
                     floor.getStyleClass().remove(ACCEPTING_CLASS);
                 }
             });
-
-
-
-        for (int i = 0; i < TileDestination.FLOOR.capacity(); i++){
-                VBox floorPositions = new VBox();
-
-                Node anchor = anchors.get(new TileLocation.OnFloor(playerId, i));
-                floorPositions.getChildren().add(anchor);
-
-                Text penalty = new Text("-" + Points.floorPenalty(i));
-                floorPositions.getChildren().add(penalty);
-                floor.getChildren().add(floorPositions);
+            for (int i = 0; i < TileDestination.FLOOR.capacity(); i++){
+                floor.getChildren().add(new VBox(
+                    anchors.get(new TileLocation.OnFloor(playerId, i)),
+                    new Text("-" + Points.floorPenalty(i))));
             }
-
             playerBoardGrid.add(currentPlayerBoard, playerId.ordinal()%2, playerId.ordinal()/2);
         }
+
         //Mise à jour du bord du plateau du joueur courant
         observer.map(ImmutableGameState::currentPlayerId).subscribe(currentId -> {
             playerBoards.forEach((playerId, pane) -> {
-                if (playerId == currentId)
-                    pane.getStyleClass().add(CURRENT_PLAYER_CLASS);
-                else
-                    pane.getStyleClass().remove(CURRENT_PLAYER_CLASS);
+                if (playerId == currentId) pane.getStyleClass().add(CURRENT_PLAYER_CLASS);
+                else pane.getStyleClass().remove(CURRENT_PLAYER_CLASS);
             });
         });
 
         return new BoardUI(root, bonusMap);
-
     }
 
     public Node root(){
@@ -265,5 +227,4 @@ public final class BoardUI {
     public void showBonusPoints(PlayerId playerId, Object bonusKey){
         bonusMap.get(new AbstractMap.SimpleEntry<>(playerId, bonusKey)).setVisible(true);
     }
-
 }
