@@ -162,6 +162,13 @@ public interface ReadOnlyGameState {
             for (TileSource tileSource : game().tileSources()) {
                 if (allSources || PkIntSet32.contains(pkUniqueTileSources(), tileSource.index())) {
                     for (TileKind.Colored colored : TileKind.Colored.ALL) {
+
+                        // Coup vers la ligne plancher (toujours valide si la source contient la couleur)
+                        if (PkTileSet.countOf(pkTileSources().get(tileSource.index()), colored) != PkTileSet.EMPTY) {
+                            destination[count] = PkMove.pack(tileSource, colored, TileDestination.FLOOR);
+                            count++;
+                        }
+
                         // Coup vers une ligne de motif (si la source contient la couleur et la ligne peut l'accueillir)
                         for (TileDestination.Pattern line : TileDestination.Pattern.ALL) {
 
@@ -173,11 +180,6 @@ public interface ReadOnlyGameState {
                                 destination[count] = PkMove.pack(tileSource, colored, line);
                                 count++;
                             }
-                        }
-                        // Coup vers la ligne plancher (toujours valide si la source contient la couleur)
-                        if (PkTileSet.countOf(pkTileSources().get(tileSource.index()), colored) != PkTileSet.EMPTY) {
-                            destination[count] = PkMove.pack(tileSource, colored, TileDestination.FLOOR);
-                            count++;
                         }
                     }
                 }

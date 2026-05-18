@@ -59,14 +59,16 @@ public final class HeuristicMoveSelector {
         private int res = -1;
 
         private void add(int move, RandomGenerator rng){
-            int j = rng.nextInt(count + 1);
+            /*int j = rng.nextInt(count + 1);
             if (j == 0) res = move;
             count++;
 
-            /*count++;
+             */
+
+            count++;
             if (count == 1 || rng.nextInt(count) == 0) res = move;
 
-             */
+
 
         }
 
