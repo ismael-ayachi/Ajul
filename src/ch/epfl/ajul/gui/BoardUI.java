@@ -121,6 +121,7 @@ public final class BoardUI {
 
                 //Gestion des événements
                 patternBox.addEventHandler(MouseDragEvent.MOUSE_DRAG_ENTERED, ( _ -> {
+                    if (observer.getValue().currentPlayerId() != playerId) return;
                     boolean canAccept = potentialMoves.stream()
                             .anyMatch(move -> move.destination().equals(line));
                     if (canAccept)
@@ -131,16 +132,17 @@ public final class BoardUI {
                         MouseDragEvent.MOUSE_DRAG_EXITED,
                         _ -> patternBox.getStyleClass().remove(ACCEPTING_CLASS));
 
-                patternBox.addEventHandler(MouseDragEvent.MOUSE_DRAG_RELEASED, _ ->
-                        potentialMoves.stream()
-                                .filter(move -> move.destination().equals(line))
-                                .findFirst()
-                                .ifPresent(move -> {
-                                    if (moveQueue.offer(move)) {
-                                        moveAccepted[0] = true;
-                                        patternBox.getStyleClass().remove(ACCEPTING_CLASS);
-                                    }
-                                }));
+                patternBox.addEventHandler(MouseDragEvent.MOUSE_DRAG_RELEASED, _ -> {
+                    if (observer.getValue().currentPlayerId() != playerId) return;
+                    potentialMoves.stream()
+                            .filter(move -> move.destination().equals(line))
+                            .findFirst()
+                            .ifPresent(move -> {
+                                if (moveQueue.offer(move)) {
+                                    moveAccepted[0] = true;
+                                    patternBox.getStyleClass().remove(ACCEPTING_CLASS);
+                                }});
+                });
 
                 GridPane.setHalignment(patternBox, HPos.RIGHT);
                 GridPane.setFillWidth(patternBox, false);
@@ -181,16 +183,19 @@ public final class BoardUI {
             gridContent.getChildren().add(floor);
 
             floor.addEventHandler(MouseDragEvent.MOUSE_DRAG_ENTERED, _ -> {
+                if (observer.getValue().currentPlayerId() != playerId) return;
                 boolean canAccept = potentialMoves.stream()
                         .anyMatch(move -> move.destination().equals(TileDestination.FLOOR));
                 if (canAccept)
                     floor.getStyleClass().add(ACCEPTING_CLASS);
             });
 
-            floor.addEventHandler(MouseDragEvent.MOUSE_DRAG_EXITED,
-                    _ -> floor.getStyleClass().remove(ACCEPTING_CLASS));
+            floor.addEventHandler(MouseDragEvent.MOUSE_DRAG_EXITED, _ -> {
+                floor.getStyleClass().remove(ACCEPTING_CLASS);
+            });
 
             floor.addEventHandler(MouseDragEvent.MOUSE_DRAG_RELEASED, _ -> {
+                if (observer.getValue().currentPlayerId() != playerId) return;
                 boolean canAccept = potentialMoves.stream()
                         .anyMatch(move -> move.destination().equals(TileDestination.FLOOR));
                 Move moveFound = potentialMoves.stream()
