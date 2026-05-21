@@ -41,7 +41,6 @@ public final class BoardUI {
                                  Set<Move> potentialMoves,
                                  boolean[] moveAccepted,
                                  BlockingQueue<Move> moveQueue) {
-
         Game game = observer.getValue().game();
 
         //Root
@@ -224,7 +223,6 @@ public final class BoardUI {
 
         return new BoardUI(root, bonusMap);
     }
-
     public Node root(){
         return root;
     }
