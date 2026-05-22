@@ -4,6 +4,7 @@ import ch.epfl.ajul.*;
 import ch.epfl.ajul.gamestate.ImmutableGameState;
 import ch.epfl.ajul.gamestate.Move;
 import ch.epfl.ajul.gamestate.MutableGameState;
+import ch.epfl.ajul.gamestate.ReadOnlyGameState;
 import ch.epfl.ajul.mcts.MctsPlayer;
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -13,9 +14,12 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
+
+import java.awt.*;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.*;
+import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.SynchronousQueue;
 import java.util.random.RandomGenerator;
@@ -54,7 +58,6 @@ public final class Main extends Application {
         byte[] seedBytes = seedString != null
                 ? seedString.getBytes(StandardCharsets.UTF_8)
                 : SecureRandom.getSeed(8);
-
         RandomGenerator rng = RandomGeneratorFactory.getDefault().create(seedBytes);
 
         //Construction de l'interface graphique
@@ -72,30 +75,16 @@ public final class Main extends Application {
         BoardUI boardUI = BoardUI.create(tiles.anchors(), gameStateP, potentialMoves, moveAccepted, moveQueue);
         Parent root = new StackPane(boardUI.root(), tileOverlayUI.root());
 
+
+        root.getStylesheets().add("ajul.css");
+        primaryStage.setScene(new Scene(root));
+        primaryStage.setTitle("Ajul");
+        primaryStage.setResizable(false);
+        primaryStage.show();
+
+        //Fil gérant l'exécution d'une partie complète
         Thread.startVirtualThread(() -> {
-            PointsObserver pointsObserver = new PointsObserver() {
-                @Override
-                public void newWallTile(PlayerId playerId, TileDestination.Pattern line,
-                                        TileKind.Colored color, int points) {
-                    tileOverlayUI.showTilePoints(new TileLocation.OnWall(playerId, line, color), points);
-                }
-
-                @Override
-                public void fullRow(PlayerId playerId, TileDestination.Pattern line, int points) {
-                    Platform.runLater(() -> boardUI.showBonusPoints(playerId, line));
-                }
-
-                @Override
-                public void fullColumn(PlayerId playerId, int column, int points) {
-                    Platform.runLater(() -> boardUI.showBonusPoints(playerId, column));
-                }
-
-                @Override
-                public void fullColor(PlayerId playerId, TileKind.Colored color, int points) {
-                    Platform.runLater(() -> boardUI.showBonusPoints(playerId, color));
-                }
-            };
-
+            PointsObserver pointsObserver = createPointsObserver(tileOverlayUI, boardUI);
             MutableGameState gameState = new MutableGameState(ImmutableGameState.initial(game), pointsObserver);
             gameState.fillFactories(rng);
             updateGameStateP(gameStateP, gameState.immutable());
@@ -109,35 +98,18 @@ public final class Main extends Application {
                             new MctsPlayer(RandomGeneratorFactory.getDefault(), ITERATION_COUNT));
                 }
             }
+
+            //Boucle principale qui gère le déroulement d'une partie
             while (!gameState.isGameOver()) {
                 PlayerId current = gameState.currentPlayerId();
-                Game.PlayerDescription.PlayerKind kind = playerDescriptions.get(current.ordinal()).kind();
-                Move move;
-                if (kind == HUMAN) {
-                    validMoves.clear();
-                    //Calcul et remplissage de validMoves
-                    short[] validMovesArray = new short[Move.MAX_MOVES];
-                    int count = gameState.immutable().validMoves(validMovesArray);
-                    for (int i = 0; i < count; i++) {
-                        validMoves.add(Move.ofPacked(validMovesArray[i]));
-                    }
-                    try {
-                        move = moveQueue.take();
-                    } catch (InterruptedException e) {
-                        throw new Error(e);
-                    }
-                   validMoves.clear();
-                } else {
-                    Player aiPlayer = aiPlayers.get(current);
-                    move = aiPlayer.nextMove(gameState);
-                }
+                Move move = game.playerDescriptions().get(current.ordinal()).kind() == HUMAN
+                        ? playHumanMove(gameState, validMoves, moveQueue)
+                        : aiPlayers.get(current).nextMove(gameState);
                 gameState.registerMove(move.packed());
-
                 updateGameStateP(gameStateP, gameState.immutable());
                 if (gameState.isRoundOver()) {
                     pause(1);
                     gameState.endRound();
-
                     if (!gameState.isGameOver()) {
                         updateGameStateP(gameStateP, gameState.immutable());
                         pause(0.7);
@@ -146,17 +118,28 @@ public final class Main extends Application {
                     updateGameStateP(gameStateP, gameState.immutable());
                 }
             }
-
             gameState.endGame();
         });
 
-        root.getStylesheets().add("ajul.css");
-        primaryStage.setScene(new Scene(root));
-        primaryStage.setTitle("Ajul");
-        primaryStage.setResizable(false);
-        primaryStage.show();
-
     }
+
+    /// Propose les coups valides à l'interface, attend le coup choisi par l'humain et le retourne.
+    private static Move playHumanMove(ReadOnlyGameState gameState,
+                                      Set<Move> validMoves, BlockingQueue<Move> moveQueue) {
+        validMoves.clear();
+        short[] validMovesArray = new short[Move.MAX_MOVES];
+        int count = gameState.validMoves(validMovesArray);
+        for (int i = 0; i < count; i++)
+            validMoves.add(Move.ofPacked(validMovesArray[i]));
+        try {
+            Move move = moveQueue.take();
+            validMoves.clear();
+            return move;
+        } catch (InterruptedException e) {
+            throw new Error(e);
+        }
+    }
+
 
     private static void pause(double duration){
         try {
@@ -169,6 +152,32 @@ public final class Main extends Application {
     private static void updateGameStateP(ObjectProperty<ImmutableGameState> gameStateP,
                                          ImmutableGameState immutableGameState) {
         Platform.runLater(() -> gameStateP.set(immutableGameState));
+    }
+
+    private static PointsObserver createPointsObserver(TileOverlayUI tileOverlayUI, BoardUI boardUI){
+        return new PointsObserver() {
+            @Override
+            public void newWallTile(PlayerId playerId, TileDestination.Pattern line,
+                                    TileKind.Colored color, int points) {
+                tileOverlayUI.showTilePoints(new TileLocation.OnWall(playerId, line, color), points);
+            }
+
+            @Override
+            public void fullRow(PlayerId playerId, TileDestination.Pattern line, int points) {
+                Platform.runLater(() -> boardUI.showBonusPoints(playerId, line));
+            }
+
+            @Override
+            public void fullColumn(PlayerId playerId, int column, int points) {
+                Platform.runLater(() -> boardUI.showBonusPoints(playerId, column));
+            }
+
+            @Override
+            public void fullColor(PlayerId playerId, TileKind.Colored color, int points) {
+                Platform.runLater(() -> boardUI.showBonusPoints(playerId, color));
+            }
+        };
+
     }
 }
 
