@@ -160,25 +160,23 @@ public interface ReadOnlyGameState {
             int currentPlayerPkWall = PkPlayerStates.pkWall(pkPlayerStates(), currentPlayerId());
             // Enumération de toutes les combinaisons source × couleur × destination
             for (TileSource tileSource : game().tileSources()) {
+                int pkTileSource = pkTileSources().get(tileSource.index());
                 if (allSources || PkIntSet32.contains(pkUniqueTileSources(), tileSource.index())) {
                     for (TileKind.Colored colored : TileKind.Colored.ALL) {
-
-                        // Coup vers la ligne plancher (toujours valide si la source contient la couleur)
-                        if (PkTileSet.countOf(pkTileSources().get(tileSource.index()), colored) != PkTileSet.EMPTY) {
+                        if (PkTileSet.countOf(pkTileSource, colored) != 0) {
+                            // Coup vers la ligne plancher (toujours valide si la source contient la couleur)
                             destination[count] = PkMove.pack(tileSource, colored, TileDestination.FLOOR);
                             count++;
-                        }
 
-                        // Coup vers une ligne de motif (si la source contient la couleur et la ligne peut l'accueillir)
-                        for (TileDestination.Pattern line : TileDestination.Pattern.ALL) {
-
-                            boolean pkPatternCanContain = pkPatternCanContain(currentPlayerPkPattern,
-                                    currentPlayerPkWall, line, colored);
-
-                            if (PkTileSet.countOf(pkTileSources().get(tileSource.index()), colored) != PkTileSet.EMPTY
-                                    && pkPatternCanContain) {
-                                destination[count] = PkMove.pack(tileSource, colored, line);
-                                count++;
+                            // Coup vers une ligne de motif (si la source contient la couleur et
+                            // la ligne peut l'accueillir)
+                            for (TileDestination.Pattern line : TileDestination.Pattern.ALL) {
+                                boolean pkPatternCanContain = pkPatternCanContain(currentPlayerPkPattern,
+                                        currentPlayerPkWall, line, colored);
+                                if (pkPatternCanContain) {
+                                    destination[count] = PkMove.pack(tileSource, colored, line);
+                                    count++;
+                                }
                             }
                         }
                     }

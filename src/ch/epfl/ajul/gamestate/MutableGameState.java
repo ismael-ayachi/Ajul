@@ -145,7 +145,7 @@ public final class MutableGameState implements ReadOnlyGameState {
         int pkTileSourcePlayerMove = pkTileSources[playerMoveSource.index()];
         int oldSourceContent = pkTileSourcePlayerMove;
         int pkTileSourceColorCount = PkTileSet.countOf(
-                pkTileSources().get(playerMoveSource.index()), playerMoveColor);
+                pkTileSources[playerMoveSource.index()], playerMoveColor);
         int pkFloorPlayer = PkPlayerStates.pkFloor(pkPlayerStates(), currentPlayerId());
         int pkPatternPlayer = PkPlayerStates.pkPatterns(pkPlayerStates(), currentPlayerId());
 
@@ -158,13 +158,13 @@ public final class MutableGameState implements ReadOnlyGameState {
         // Déplacement des tuiles restantes vers le centre / gestion du marqueur de premier joueur
         if (playerMoveSource instanceof TileSource.Factory && pkTileSourcePlayerMove != PkTileSet.EMPTY) {
             pkTileSources[CENTER_AREA_INDEX] =
-                    PkTileSet.union(pkTileSources().get(CENTER_AREA_INDEX), pkTileSourcePlayerMove);
+                    PkTileSet.union(pkTileSources[CENTER_AREA_INDEX], pkTileSourcePlayerMove);
             pkTileSources[playerMoveSource.index()] = PkTileSet.EMPTY;
         }
 
         else if (playerMoveSource instanceof TileSource.CenterArea &&
-                PkTileSet.countOf(pkTileSources().get(CENTER_AREA_INDEX), TileKind.FIRST_PLAYER_MARKER) == 1) {
-            pkTileSources[CENTER_AREA_INDEX] = PkTileSet.remove(pkTileSources().get(CENTER_AREA_INDEX),
+                PkTileSet.countOf(pkTileSources[CENTER_AREA_INDEX], TileKind.FIRST_PLAYER_MARKER) == 1) {
+            pkTileSources[CENTER_AREA_INDEX] = PkTileSet.remove(pkTileSources[CENTER_AREA_INDEX],
                     TileKind.FIRST_PLAYER_MARKER);
 
             pkFloorPlayer = PkFloor.withAddedTiles(pkFloorPlayer,
@@ -177,10 +177,11 @@ public final class MutableGameState implements ReadOnlyGameState {
             pkUniqueTileSources = PkIntSet32.remove(pkUniqueTileSources,playerMoveSource.index());
             boolean notFound = true;
             for (int i = playerMoveSource.index() + 1 ; i < game().tileSourcesCount() && notFound; i++){
-                if (pkTileSources().get(i) == oldSourceContent) {
-                    for (int j = 1; j < i && notFound; j++){
-                        if (pkTileSources().get(j) == pkTileSources().get(i)){
+                if (pkTileSources[i] == oldSourceContent) {
+                    for (int j = 1; j < i; j++){
+                        if (pkTileSources[j] == pkTileSources[i]) {
                             notFound = false;
+                            break;
                         }
                     }
                     if (notFound) {
@@ -192,8 +193,8 @@ public final class MutableGameState implements ReadOnlyGameState {
             }
         }
 
-        int centerAreaColored = pkTileSources().get(CENTER_AREA_INDEX)
-                - PkTileSet.subsetOf(pkTileSources().get(CENTER_AREA_INDEX), TileKind.FIRST_PLAYER_MARKER);
+        int centerAreaColored = pkTileSources[CENTER_AREA_INDEX]
+                - PkTileSet.subsetOf(pkTileSources[CENTER_AREA_INDEX], TileKind.FIRST_PLAYER_MARKER);
         pkUniqueTileSources = centerAreaColored != PkTileSet.EMPTY
                 ? PkIntSet32.add(pkUniqueTileSources, CENTER_AREA_INDEX)
                 : PkIntSet32.remove(pkUniqueTileSources, CENTER_AREA_INDEX);

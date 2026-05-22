@@ -23,7 +23,7 @@ public final class TileOverlayUI {
     private final Pane root;
     private final Map<TileLocation, Node> anchors;
 
-    private static final Duration ANIMATION_DURATION = Duration.seconds( 1d / 8d );
+    private static final Duration ANIMATION_DURATION = Duration.seconds(1d / 8d);
     private static final Point2D OFFBOARD_POSITION = new Point2D(-Tiles.TILE_WIDTH, -Tiles.TILE_HEIGHT);
 
     private enum Layer {

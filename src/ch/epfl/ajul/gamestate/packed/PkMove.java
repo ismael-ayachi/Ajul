@@ -35,9 +35,9 @@ public final class PkMove {
     /// @param destination la destination sur laquelle les tuiles jouées sont placées
     /// @return le coup empaqueté correspondant aux paramètres donnés
     public static short pack(TileSource source, TileKind.Colored color, TileDestination destination) {
-        return (short) ((TileSource.ALL.indexOf(source) & SOURCE_MASK) << SOURCE_OFFSET
-                | ((TileKind.Colored.ALL.indexOf(color) & COLOR_MASK) << COLOR_OFFSET)
-                | ((TileDestination.ALL.indexOf(destination) & DESTINATION_MASK) << DESTINATION_OFFSET));
+        return (short) ((source.index() << SOURCE_OFFSET)
+                | (color.index() << COLOR_OFFSET)
+                | (destination.index() << DESTINATION_OFFSET));
     }
 
     /// Retourne la source du coup empaqueté donné.

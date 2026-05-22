@@ -1,9 +1,6 @@
 package ch.epfl.ajul.mcts;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.IntStream;
 
 public final class MctsNode {
@@ -55,14 +52,16 @@ public final class MctsNode {
         if (gameCount() <= children.length) {
             return gameCount() - 1;
         }
-        return IntStream.range(0, children.length) //Efficacité à vérifier
-                .boxed()
-                .max(Comparator.comparingDouble(i -> priority(children[i])))
-                .orElseThrow();
+        double logParentSimulations = Math.log(gameCount());
+        double[] priorities = Arrays.stream(children)
+                .mapToDouble(child -> priority(child, logParentSimulations))
+                .toArray();
+        return IntStream.range(0, children.length)
+                .reduce(0, (best, i) -> priorities[i] > priorities[best] ? i : best);
     }
 
-    private double priority(MctsNode childNode) {
-        double explorationBonus = Math.sqrt((double) 2 * Math.log(gameCount()) / childNode.gameCount());
+    private double priority(MctsNode childNode, double logParentSimulations) {
+        double explorationBonus = Math.sqrt((double) 2 * logParentSimulations / childNode.gameCount());
         double exploration = EXPLORATION_CONSTANT * explorationBonus;
         return childNode.averagePoints() + exploration;
     }

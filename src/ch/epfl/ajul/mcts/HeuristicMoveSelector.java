@@ -67,9 +67,6 @@ public final class HeuristicMoveSelector {
 
             count++;
             if (count == 1 || rng.nextInt(count) == 0) res = move;
-
-
-
         }
 
         private int get(){
