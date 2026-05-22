@@ -27,6 +27,7 @@ import static ch.epfl.ajul.Game.PlayerDescription.PlayerKind.HUMAN;
 public final class Main extends Application {
 
     private static final int ITERATION_COUNT = 10000;
+
     public static void main(String[] args) {
         launch(args);
     }

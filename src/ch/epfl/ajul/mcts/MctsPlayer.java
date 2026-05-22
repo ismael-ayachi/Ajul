@@ -14,16 +14,30 @@ import java.util.Optional;
 import java.util.random.RandomGenerator;
 import java.util.random.RandomGeneratorFactory;
 
+/// Joueur simulé par ordinateur déterminant ses coups au moyen de l'algorithme
+/// de recherche arborescente Monte Carlo (MCTS).
+///
+/// @author Ismaël Ayachi (393163)
 public final class MctsPlayer implements Player {
 
     private final RandomGeneratorFactory<RandomGenerator> randomGeneratorFactory;
     private final int iterationCount;
 
+    /// Construit un joueur MCTS.
+    ///
+    /// @param randomGeneratorFactory la fabrique de générateurs aléatoires utilisée pour les simulations
+    /// @param iterationCount         le nombre d'itérations MCTS effectuées à chaque coup
     public MctsPlayer(RandomGeneratorFactory<RandomGenerator> randomGeneratorFactory, int iterationCount ){
         this.randomGeneratorFactory = randomGeneratorFactory;
         this.iterationCount = iterationCount;
     }
 
+    /// Retourne le coup choisi par ce joueur depuis l'état {@code gameState}, déterminé
+    /// en construisant un arbre MCTS sur {@code iterationCount} itérations puis en
+    /// retournant le coup de la racine ayant la meilleure moyenne de points.
+    ///
+    /// @param gameState l'état de la partie depuis lequel jouer
+    /// @return le coup choisi
     @Override
     public Move nextMove(ReadOnlyGameState gameState) {
         short[] validMoves = new short[Move.MAX_MOVES];
@@ -66,13 +80,12 @@ public final class MctsPlayer implements Player {
 
                 if (mutableGameState.isRoundOver()) {
                     mutableGameState.endRound();
-                    if (!mutableGameState.isGameOver()) // Ajouté
+                    if (!mutableGameState.isGameOver())
                         mutableGameState.fillFactories(randomGeneratorFactory.create(currentNode.pkMove()));
                 }
             }
 
             //Simulation
-            //RandomGenerator randomGenerator = randomGeneratorFactory.create(currentNode.totalPoints());
             while (!mutableGameState.isGameOver()){
                 int validMovesCount = mutableGameState.uniqueValidMoves(validMoves);
                 int selectedMove =

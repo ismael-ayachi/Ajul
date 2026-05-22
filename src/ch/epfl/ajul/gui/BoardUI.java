@@ -15,10 +15,14 @@ import javafx.scene.text.Text;
 import java.util.*;
 import java.util.concurrent.BlockingQueue;
 
+/// Interface graphique du plateau de jeu : les sources de tuiles d'une part,
+/// et les plateaux individuels des joueurs (lignes de motif, mur, plancher) d'autre part.
+///
+/// @author Ismaël Ayachi (393163)
 public final class BoardUI {
 
     private final Node root;
-    private final Map<AbstractMap.SimpleEntry<PlayerId, Object>, Text> bonusMap;
+    private final Map<BonusKey, Text> bonusMap;
 
     private static final String TILE_SOURCE_CLASS = "tile-source";
     private static final String TILE_GROUP_CLASS = "tile-group";
@@ -30,12 +34,19 @@ public final class BoardUI {
     private static final String FLOOR_CLASS = "floor";
     private static final String PLAYER_BOARD_CLASS = "player-board";
 
-    private BoardUI(Node root, Map<AbstractMap.SimpleEntry<PlayerId, Object>, Text> bonusMap){
+    private BoardUI(Node root, Map<BonusKey, Text> bonusMap){
         this.root = root;
         this.bonusMap = bonusMap;
     }
 
-    //Create prend aussi 3 autres arguments à ajouter à la fin/en lien avec le drag&drop
+    /// Construit l'interface graphique complète du plateau de jeu.
+    ///
+    /// @param anchors        la table associant chaque emplacement de tuile à son ancre
+    /// @param observer       l'état observable de la partie
+    /// @param potentialMoves l'ensemble des coups correspondant à la tuile en cours de glissement
+    /// @param moveAccepted   drapeau (tableau d'une case) indiquant si le coup glissé a été accepté
+    /// @param moveQueue       la file bloquante recevant le coup joué par un humain
+    /// @return l'interface graphique du plateau
     public static BoardUI create(Map<TileLocation, Node> anchors,
                                  ObservableValue<ImmutableGameState> observer,
                                  Set<Move> potentialMoves,
@@ -52,7 +63,7 @@ public final class BoardUI {
         root.getChildren().add(sourceGrid);
 
         //Table associative pour la visibilité des points bonus
-        Map<AbstractMap.SimpleEntry<PlayerId, Object>, Text> bonusMap = new HashMap<>();
+        Map<BonusKey, Text> bonusMap = new HashMap<>();
 
         //Fabriques
         for (TileSource.Factory factory : game.factories()) {
@@ -157,21 +168,21 @@ public final class BoardUI {
 
                 for (int col = 0; col < PkWall.WALL_WIDTH ; col++) {
                     TileKind.Colored color =  PkWall.colorAt(line, col);
-                    bonusMap.put(new AbstractMap.SimpleEntry<>(playerId, color), fullColorBonus);
+                    bonusMap.put(new BonusKey(playerId, color), fullColorBonus);
                     Node anchor = anchors.get(new TileLocation.OnWall(playerId, line, color));
                     anchor.getStyleClass().addAll(WALL_BACKGROUND_CLASS, color.toString());
                     patternWall.add(anchor, col + 2, row);
                 }
                 Text fullRowBonus = new Text("+" + Points.FULL_ROW_BONUS_POINTS); //Formatage ?
                 fullRowBonus.setVisible(false);
-                bonusMap.put(new AbstractMap.SimpleEntry<>(playerId, line), fullRowBonus);
+                bonusMap.put(new BonusKey(playerId, line), fullRowBonus);
                 patternWall.add(fullRowBonus, PkWall.WALL_WIDTH + 2, row);
             }
 
             for (int col = 0; col < PkWall.WALL_WIDTH ; col++) {
                 Text fullColBonus = new Text("+" + Points.FULL_COLUMN_BONUS_POINTS); //Formatage ?
                 fullColBonus.setVisible(false);
-                bonusMap.put(new AbstractMap.SimpleEntry<>(playerId, col) , fullColBonus);
+                bonusMap.put(new BonusKey(playerId, col) , fullColBonus);
                 GridPane.setHalignment(fullColBonus, HPos.CENTER);
                 patternWall.add(fullColBonus, col + 2, PkWall.WALL_HEIGHT);
             }
@@ -223,11 +234,27 @@ public final class BoardUI {
 
         return new BoardUI(root, bonusMap);
     }
+    /// Retourne la racine du graphe de scène du plateau.
+    ///
+    /// @return la racine du plateau
     public Node root(){
         return root;
     }
 
+    /// Rend visible le texte de points bonus associé au joueur {@code playerId} et à la
+    /// clé {@code bonusKey}, appelé en fin de partie lorsqu'un bonus est obtenu.
+    ///
+    /// @param playerId le joueur concerné
+    /// @param bonusKey la clé du bonus : une ligne ({@code Pattern}), une colonne
+    ///                 ({@code Integer}) ou une couleur ({@code TileKind.Colored})
     public void showBonusPoints(PlayerId playerId, Object bonusKey){
-        bonusMap.get(new AbstractMap.SimpleEntry<>(playerId, bonusKey)).setVisible(true);
+        bonusMap.get(new BonusKey(playerId, bonusKey)).setVisible(true);
     }
+
+    /// Clé identifiant un texte de points bonus, combinant un joueur et un identifiant
+    /// de bonus (ligne, colonne ou couleur).
+    ///
+    /// @param playerId le joueur concerné
+    /// @param bonusKey l'identifiant du bonus
+    private record BonusKey(PlayerId playerId, Object bonusKey) {}
 }

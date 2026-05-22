@@ -12,16 +12,56 @@ import javafx.util.Duration;
 import java.util.*;
 import java.util.function.Function;
 
+    /// Calcule les animations déplaçant les tuiles vers leur nouvel emplacement lors
+    /// d'un changement d'état, d'une manière conforme aux règles du jeu et agréable à l'œil.
+    ///
+    /// @author Ismaël Ayachi (393163)
     public final class TileAnimator {
 
+        private static final Duration TRANSITION_DURATION = Duration.seconds(0.5);
+
+        /// Répartition d'emplacements de tuiles par type de destination, utilisée pour
+        /// distinguer l'offre (tuiles à déplacer) de la demande (emplacements à pourvoir).
+        ///
+        /// @param wall     les emplacements sur le mur
+        /// @param pattern  les emplacements sur les lignes de motif
+        /// @param floor    les emplacements sur le plancher
+        /// @param source   les emplacements sur les sources
+        /// @param offBoard les emplacements hors plateau
         private record Partition(
                 List<TileLocation.OnWall> wall,
                 List<TileLocation.OnPattern> pattern,
                 List<TileLocation.OnFloor> floor,
                 List<TileLocation.OnSource> source,
-                List<TileLocation.OffBoard> offBoard
-        ) {}
+                List<TileLocation.OffBoard> offBoard) {
 
+            /// Retourne une partition vide, dont chaque catégorie est une liste modifiable vide.
+            ///
+            /// @return une partition vide
+            static Partition empty() {
+                return new Partition(new ArrayList<>(), new ArrayList<>(),
+                        new ArrayList<>(), new ArrayList<>(), new ArrayList<>());
+            }
+
+            /// Retourne tous les emplacements de cette partition réunis en une seule liste.
+            ///
+            /// @return la concaténation de toutes les catégories
+            List<TileLocation> toList() {
+                List<TileLocation> all = new ArrayList<>();
+                all.addAll(wall()); all.addAll(pattern());
+                all.addAll(floor()); all.addAll(source()); all.addAll(offBoard());
+                return all;
+            }
+        }
+
+        /// Retourne une animation déplaçant chaque tuile de sa position actuelle vers la
+        /// position qu'elle doit occuper dans l'état {@code gameState}, en appariant les
+        /// tuiles disponibles (offre) aux emplacements à pourvoir (demande).
+        ///
+        /// @param position fonction donnant la position à l'écran d'un emplacement de tuile
+        /// @param tiles    la table associant chaque sorte de tuile à ses nœuds représentants
+        /// @param gameState l'état de la partie vers lequel animer les tuiles
+        /// @return l'animation parallèle déplaçant les tuiles
         public static Animation animateTiles(Function<TileLocation, Point2D> position,
                                              Map<TileKind, List<Node>> tiles,
                                              ReadOnlyGameState gameState) {
@@ -30,19 +70,8 @@ import java.util.function.Function;
 
             tiles.forEach((tileKind, nodes) -> {
 
-                Partition demand = new Partition(
-                        new ArrayList<>(),
-                        new ArrayList<>(),
-                        new ArrayList<>(),
-                        new ArrayList<>(),
-                        new ArrayList<>());
-
-                Partition supply = new Partition(
-                        new ArrayList<>(),
-                        new ArrayList<>(),
-                        new ArrayList<>(),
-                        new ArrayList<>(),
-                        new ArrayList<>());
+                Partition demand = Partition.empty();
+                Partition supply = Partition.empty();
 
                 // Calcul de la demande pour ce tileKind uniquement
                 int sourceIndex = 0;
@@ -65,7 +94,7 @@ import java.util.function.Function;
                     // Plancher : uniquement les tuiles du tileKind actuel
                     int floor = PkPlayerStates.pkFloor(gameState.pkPlayerStates(), playerId);
                     for (int i = 0; i < PkFloor.size(floor); i++) {
-                        if (PkFloor.tileAt(floor, i).equals(tileKind)) { //== au lieu de .equals ?
+                        if (PkFloor.tileAt(floor, i) == tileKind) {
                             demand.floor().add(new TileLocation.OnFloor(playerId, i));
                         }
                     }
@@ -120,8 +149,8 @@ import java.util.function.Function;
                 // 1. Appariement mur → ligne de motif
                 for (TileLocation.OnWall wallDemand : new ArrayList<>(demand.wall())) {
                     TileLocation.OnPattern match = supply.pattern().stream()
-                            .filter(p -> p.playerId().equals(wallDemand.playerId())
-                                    && p.pattern().equals(wallDemand.pattern()))
+                            .filter(p -> p.playerId() == wallDemand.playerId()
+                                    && p.pattern() == wallDemand.pattern())
                             .min(Comparator.comparingInt(TileLocation.OnPattern::index))
                             .orElseThrow();
                     pairings.put(match, wallDemand);
@@ -168,19 +197,8 @@ import java.util.function.Function;
                 }
 
                 // 6. Appariement quelconque du reste
-                List<TileLocation> remainingSupply = new ArrayList<>();
-                remainingSupply.addAll(supply.wall());
-                remainingSupply.addAll(supply.pattern());
-                remainingSupply.addAll(supply.floor());
-                remainingSupply.addAll(supply.source());
-                remainingSupply.addAll(supply.offBoard());
-
-                List<TileLocation> remainingDemand = new ArrayList<>();
-                remainingDemand.addAll(demand.wall());
-                remainingDemand.addAll(demand.pattern());
-                remainingDemand.addAll(demand.floor());
-                remainingDemand.addAll(demand.source());
-                remainingDemand.addAll(demand.offBoard());
+                List<TileLocation> remainingSupply = supply.toList();
+                List<TileLocation> remainingDemand = demand.toList();
 
                 for (int i = 0; i < remainingSupply.size(); i++) {
                     pairings.put(remainingSupply.get(i), remainingDemand.get(i));
@@ -199,11 +217,9 @@ import java.util.function.Function;
 
                     // 2. Créer et ajouter l'animation
                     parallelTransition.getChildren().add(
-                            new RelocationTransition(node, destination, Duration.millis(500)));
+                            new RelocationTransition(node, destination, TRANSITION_DURATION));
                 }
-
             });
-
             return parallelTransition;
     }
 }

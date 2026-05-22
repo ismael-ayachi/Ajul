@@ -18,6 +18,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 
+/// Couche graphique superposée au plateau, gérant l'affichage des tuiles mobiles,
+/// leur animation, le glisser-déposer des coups humains et l'affichage des points.
+///
+/// @author Ismaël Ayachi (393163)
 public final class TileOverlayUI {
 
     private final Pane root;
@@ -26,8 +30,13 @@ public final class TileOverlayUI {
     private static final Duration ANIMATION_DURATION = Duration.seconds(1d / 8d);
     private static final Point2D OFFBOARD_POSITION = new Point2D(-Tiles.TILE_WIDTH, -Tiles.TILE_HEIGHT);
 
+    /// Plans de profondeur des nœuds, du plus en arrière (STILL) au plus en avant (POINTS).
     private enum Layer {
         STILL, MOVING, POINTS;
+
+        /// Place le nœud {@code node} sur ce plan en réglant son ordre de vue.
+        ///
+        /// @param node le nœud à ordonner
         public void order(Node node) {
             node.setViewOrder(-ordinal());
         }
@@ -38,10 +47,22 @@ public final class TileOverlayUI {
         this.anchors = anchors;
     }
 
+    /// Retourne la racine du graphe de scène de cette couche.
+    ///
+    /// @return la racine de la couche
     public Node root() {
         return root;
     }
 
+    /// Construit la couche d'affichage des tuiles, branche l'animation sur les changements
+    /// d'état et installe la gestion du glisser-déposer pour les coups des joueurs humains.
+    ///
+    /// @param observer       l'état observable de la partie
+    /// @param tiles          les tuiles et ancres de la partie
+    /// @param validMoves     l'ensemble des coups valides du joueur humain courant
+    /// @param potentialMoves l'ensemble des coups correspondant à la tuile en cours de glissement
+    /// @param moveAccepted   drapeau (tableau d'une case) indiquant si le coup glissé a été accepté
+    /// @return la couche d'affichage des tuiles
     public static TileOverlayUI create(ObservableValue<ImmutableGameState> observer,
                           Tiles tiles,
                           Set<Move> validMoves,
@@ -80,7 +101,7 @@ public final class TileOverlayUI {
                         TileSource source = ((TileLocation.OnSource) loc).tileSource();
                         potentialMoves.clear();
                         //Assert potentialMoves ?
-                        for (Move move: validMoves) { //Utiliser un stream ?
+                        for (Move move: validMoves) {
                             if (move.source().equals(source) && move.tileColor().equals(tileKind))
                                 potentialMoves.add(move);
                         }
@@ -141,9 +162,14 @@ public final class TileOverlayUI {
         return new TileOverlayUI(root, tiles.anchors());
     }
 
+    /// Affiche le nombre de points {@code points} centré au-dessus de l'emplacement
+    /// {@code wall} du mur, lorsqu'une tuile y est posée.
+    ///
+    /// @param wall   l'emplacement du mur où afficher les points
+    /// @param points le nombre de points à afficher
     public void showTilePoints(TileLocation.OnWall wall, int points) {
         Platform.runLater(() -> {
-            Text pointsText = new Text("+" + points); //Formatage ?
+            Text pointsText = new Text("+" + points);
             Layer.POINTS.order(pointsText);
             Bounds textSize = pointsText.getBoundsInLocal();
             double centerX =  (Tiles.TILE_WIDTH - textSize.getWidth()) / 2;
