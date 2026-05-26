@@ -28,24 +28,26 @@ import java.util.random.RandomGeneratorFactory;
 import static ch.epfl.ajul.Game.PlayerDescription.PlayerKind.AI;
 import static ch.epfl.ajul.Game.PlayerDescription.PlayerKind.HUMAN;
 
-/// Point d'entrée de l'application : analyse les arguments, construit l'interface
-/// graphique et orchestre le déroulement d'une partie dans un fil dédié.
+/// Programme principal de l'application Ajul : hérite de {@link Application} et met en
+/// œuvre sa méthode {@code start}, qui analyse les arguments passés au programme,
+/// construit l'interface graphique et démarre le fil de gestion de la partie.
 ///
 /// @author Ismaël Ayachi (393163)
 public final class Main extends Application {
 
-    private static final int ITERATION_COUNT = 10000;
+    private static final int ITERATION_COUNT = 100000;
 
     /// Lance l'application JavaFX.
     ///
-    /// @param args les arguments de la ligne de commande : les noms des joueurs
-    ///             (préfixés de {@code _} pour une IA) et éventuellement {@code --seed=...}
+    /// @param args les arguments passés au programme : les noms des joueurs (préfixés
+    ///             de {@code _} pour une IA) et éventuellement une graine pour le
+    ///             générateur aléatoire via {@code --seed=...}
     public static void main(String[] args) {
         launch(args);
     }
 
-    /// Démarre l'application : analyse les arguments, met en place l'interface graphique
-    /// puis lance le fil qui déroule la partie complète.
+    /// Analyse les arguments passés au programme, construit l'interface graphique
+    /// puis démarre le fil chargé de la gestion de la partie.
     ///
     /// @param primaryStage la fenêtre principale fournie par JavaFX
     @Override
@@ -73,7 +75,6 @@ public final class Main extends Application {
         RandomGenerator rng = RandomGeneratorFactory.getDefault().create(seedBytes);
 
         //Construction de l'interface graphique
-
         Game game = new Game(playerDescriptions);
         ImmutableGameState initialGameState = ImmutableGameState.initial(game);
         ObjectProperty<ImmutableGameState> gameStateP = new SimpleObjectProperty<>(initialGameState);
@@ -86,7 +87,6 @@ public final class Main extends Application {
         TileOverlayUI tileOverlayUI = TileOverlayUI.create(gameStateP, tiles, validMoves, potentialMoves, moveAccepted);
         BoardUI boardUI = BoardUI.create(tiles.anchors(), gameStateP, potentialMoves, moveAccepted, moveQueue);
         Parent root = new StackPane(boardUI.root(), tileOverlayUI.root());
-
 
         root.getStylesheets().add("ajul.css");
         primaryStage.setScene(new Scene(root));
@@ -135,12 +135,6 @@ public final class Main extends Application {
 
     }
 
-    /// Propose les coups valides à l'interface, attend le coup choisi par l'humain et le retourne.
-    ///
-    /// @param gameState  l'état courant de la partie
-    /// @param validMoves l'ensemble partagé des coups valides, mis à jour pour l'interface
-    /// @param moveQueue  la file par laquelle l'interface transmet le coup choisi
-    /// @return le coup joué par l'humain
     private static Move playHumanMove(ReadOnlyGameState gameState,
                                       Set<Move> validMoves, BlockingQueue<Move> moveQueue) {
         validMoves.clear();
@@ -157,10 +151,6 @@ public final class Main extends Application {
         }
     }
 
-
-    /// Suspend le fil courant pendant la durée donnée.
-    ///
-    /// @param duration la durée de la pause, en secondes
     private static void pause(double duration){
         try {
             Thread.sleep((long) (duration * 1e3));
@@ -169,20 +159,11 @@ public final class Main extends Application {
         }
     }
 
-    /// Met à jour, sur le fil JavaFX, la propriété observable contenant l'état du jeu.
-    ///
-    /// @param gameStateP         la propriété de l'état du jeu à mettre à jour
-    /// @param immutableGameState le nouvel état à publier
     private static void updateGameStateP(ObjectProperty<ImmutableGameState> gameStateP,
                                          ImmutableGameState immutableGameState) {
         Platform.runLater(() -> gameStateP.set(immutableGameState));
     }
 
-    /// Crée l'observateur de points qui répercute les gains de la partie sur l'interface graphique.
-    ///
-    /// @param tileOverlayUI la couche d'affichage des tuiles et de leurs points
-    /// @param boardUI       le plateau, affichant notamment les points bonus
-    /// @return un observateur de points relié à l'interface
     private static PointsObserver createPointsObserver(TileOverlayUI tileOverlayUI, BoardUI boardUI){
         return new PointsObserver() {
             @Override
@@ -209,5 +190,3 @@ public final class Main extends Application {
 
     }
 }
-
-
