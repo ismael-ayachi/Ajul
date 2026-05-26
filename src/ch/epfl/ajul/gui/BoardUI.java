@@ -34,6 +34,10 @@ public final class BoardUI {
     private static final String FLOOR_CLASS = "floor";
     private static final String PLAYER_BOARD_CLASS = "player-board";
 
+    private static final int FACTORY_GRID_COLUMNS = 2;
+    private static final int CENTER_AREA_GRID_COLUMNS = 8;
+    private static final int PLAYER_BOARD_GRID_COLUMNS = 2;
+
     private BoardUI(Node root, Map<BonusKey, Text> bonusMap){
         this.root = root;
         this.bonusMap = bonusMap;
@@ -71,7 +75,7 @@ public final class BoardUI {
                 factoryBox.getChildren().add(anchor);
             }
             int index = factory.index() - 1;
-            sourceGrid.add(factoryBox, index % 2, index / 2);
+            sourceGrid.add(factoryBox, index % FACTORY_GRID_COLUMNS, index / FACTORY_GRID_COLUMNS);
         }
 
         //Zone centrale
@@ -79,7 +83,7 @@ public final class BoardUI {
         centerAreaGrid.getStyleClass().addAll(TILE_GROUP_CLASS, TILE_SOURCE_CLASS);
         for (int i = 0; i < game.centralAreaMaxSize(); i++) {
             Node anchor = anchors.get(new TileLocation.OnSource(TileSource.CENTER_AREA, i));
-            centerAreaGrid.add(anchor, i % 8, i / 8);
+            centerAreaGrid.add(anchor, i % CENTER_AREA_GRID_COLUMNS, i / CENTER_AREA_GRID_COLUMNS);
         }
         int centerAreaRow = (game.factoriesCount() + 1) / 2;
         sourceGrid.add(centerAreaGrid, 0, centerAreaRow, 2, 1);
@@ -100,10 +104,9 @@ public final class BoardUI {
             ObservableValue<Integer> pointsObserver = observer.map(gameState ->
                     PkPlayerStates.points(gameState.pkPlayerStates(), playerId));
             Text identity = new Text();
-            identity.textProperty().bind(
-                    Bindings.format("%s\nPoints : %d",
-                        game.playerDescriptions().get(playerId.ordinal()).name(),
-                        pointsObserver));
+            identity.textProperty()
+                    .bind(Bindings.format("%s\nPoints : %d",
+                            game.playerDescriptions().get(playerId.ordinal()).name(), pointsObserver));
 
             currentPlayerBoard.getChildren().add(identity);
 
@@ -224,7 +227,9 @@ public final class BoardUI {
                     anchors.get(new TileLocation.OnFloor(playerId, i)),
                     new Text("-" + Points.floorPenalty(i))));
             }
-            playerBoardGrid.add(currentPlayerBoard, playerId.ordinal()%2, playerId.ordinal()/2);
+            playerBoardGrid.add(currentPlayerBoard,
+                    playerId.ordinal() % PLAYER_BOARD_GRID_COLUMNS,
+                    playerId.ordinal() / PLAYER_BOARD_GRID_COLUMNS);
         }
 
         //Mise à jour du bord du plateau du joueur courant

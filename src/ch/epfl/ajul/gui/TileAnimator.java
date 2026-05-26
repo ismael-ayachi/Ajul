@@ -29,11 +29,11 @@ import java.util.function.Function;
         /// @param source   les emplacements sur les sources
         /// @param offBoard les emplacements hors plateau
         private record Partition(
-                List<TileLocation.OnWall> wall,
-                List<TileLocation.OnPattern> pattern,
-                List<TileLocation.OnFloor> floor,
-                List<TileLocation.OnSource> source,
-                List<TileLocation.OffBoard> offBoard) {
+                List<TileLocation> wall,
+                List<TileLocation> pattern,
+                List<TileLocation> floor,
+                List<TileLocation> source,
+                List<TileLocation> offBoard) {
 
             /// Retourne une partition vide, dont chaque catégorie est une liste modifiable vide.
             ///
@@ -73,7 +73,7 @@ import java.util.function.Function;
                 Partition demand = Partition.empty();
                 Partition supply = Partition.empty();
 
-                // Calcul de la demande pour ce tileKind uniquement
+                // Calcul de la demande
                 int sourceIndex = 0;
                 for (int pkTileSource : gameState.pkTileSources().toArray()) {
                     int tilesCount = PkTileSet.countOf(pkTileSource, tileKind);
@@ -103,7 +103,7 @@ import java.util.function.Function;
                         // Lignes de motifs : uniquement si la couleur correspond
                         int pattern = PkPlayerStates.pkPatterns(gameState.pkPlayerStates(), playerId);
                         for (TileDestination.Pattern line : TileDestination.Pattern.ALL) {
-                            if (PkPatterns.canContain(pattern, line, colored))  //Utiliser size > 0 && color equals ?
+                            if (PkPatterns.canContain(pattern, line, colored))
                                 for (int i = 0; i < PkPatterns.size(pattern, line); i++)
                                     demand.pattern().add(new TileLocation.OnPattern(playerId, line, i));
                         }
@@ -123,7 +123,7 @@ import java.util.function.Function;
                     demand.offBoard().add(new TileLocation.OffBoard(tileKind, i));
                 }
 
-                // Calcul de l'offre pour ce tileKind uniquement
+                // Calcul de l'offre pour le tileKind actuel
                 Map<TileLocation, Node> nodeAtLocation = new HashMap<>();
                 for (Node n : nodes) nodeAtLocation.put(Tiles.location(n), n);
                 for (Node node : nodes) {
@@ -147,54 +147,30 @@ import java.util.function.Function;
                 Map<TileLocation, TileLocation> pairings = new HashMap<>();
 
                 // 1. Appariement mur → ligne de motif
-                for (TileLocation.OnWall wallDemand : new ArrayList<>(demand.wall())) {
+                for (TileLocation loc : new ArrayList<>(demand.wall())) {
+                    TileLocation.OnWall wallDemand = (TileLocation.OnWall) loc;
                     TileLocation.OnPattern match = supply.pattern().stream()
+                            .map(p -> (TileLocation.OnPattern) p)
                             .filter(p -> p.playerId() == wallDemand.playerId()
                                     && p.pattern() == wallDemand.pattern())
                             .min(Comparator.comparingInt(TileLocation.OnPattern::index))
                             .orElseThrow();
                     pairings.put(match, wallDemand);
                     supply.pattern().remove(match);
-                    demand.wall().remove(wallDemand);
+                    demand.wall().remove(loc);
                 }
 
                 // Trier l'offre source
                 supply.source().sort(
-                        Comparator.comparingInt(
-                                        (TileLocation.OnSource s) -> s.tileSource().index()).reversed()
-                                .thenComparingInt(TileLocation.OnSource::index));
+                        Comparator.comparingInt((TileLocation s) -> ((TileLocation.OnSource) s).tileSource().index())
+                                .reversed()
+                                .thenComparingInt(s -> ((TileLocation.OnSource) s).index()));
 
-                // 2. Appariement plancher/source
-                int count2 = Math.min(demand.floor().size(), supply.source().size());
-                for (int i = 0; i < count2; i++) {
-                    TileLocation.OnFloor floorDemand = demand.floor().removeFirst();
-                    TileLocation.OnSource match = supply.source().removeFirst();
-                    pairings.put(match, floorDemand);
-                }
-
-                // 3. Appariement ligne de motif/source
-                int count3 = Math.min(demand.pattern().size(), supply.source().size());
-                for (int i = 0; i < count3; i++) {
-                    TileLocation.OnPattern patternDemand = demand.pattern().removeFirst();
-                    TileLocation.OnSource match = supply.source().removeFirst();
-                    pairings.put(match, patternDemand);
-                }
-
-                // 4. Appariement OffBoard/plancher restant
-                int count4 = Math.min(demand.offBoard().size(), supply.floor().size());
-                for (int i = 0; i < count4; i++) {
-                    TileLocation.OffBoard offBoardDemand = demand.offBoard().removeFirst();
-                    TileLocation.OnFloor match = supply.floor().removeFirst();
-                    pairings.put(match, offBoardDemand);
-                }
-
-                // 5. Appariement OffBoard/source restante
-                int count5 = Math.min(demand.offBoard().size(), supply.source().size());
-                for (int i = 0; i < count5; i++) {
-                    TileLocation.OffBoard offBoardDemand = demand.offBoard().removeFirst();
-                    TileLocation.OnSource match = supply.source().removeFirst();
-                    pairings.put(match, offBoardDemand);
-                }
+                // 2–5. Appariements par priorité décroissante
+                pairings.putAll(matchSupplyToDemand(supply.source(), demand.floor()));
+                pairings.putAll(matchSupplyToDemand(supply.source(), demand.pattern()));
+                pairings.putAll(matchSupplyToDemand(supply.floor(),  demand.offBoard()));
+                pairings.putAll(matchSupplyToDemand(supply.source(), demand.offBoard()));
 
                 // 6. Appariement quelconque du reste
                 List<TileLocation> remainingSupply = supply.toList();
@@ -204,7 +180,7 @@ import java.util.function.Function;
                     pairings.put(remainingSupply.get(i), remainingDemand.get(i));
                 }
 
-                // Ensuite, crée les animations ET mets à jour les locations
+                // Ensuite, crée les animations et mets à jour les locations
                 for (Map.Entry<TileLocation, TileLocation> entry : pairings.entrySet()) {
                     TileLocation supplyLoc = entry.getKey();
                     TileLocation demandLoc = entry.getValue();
@@ -212,14 +188,26 @@ import java.util.function.Function;
                     Node node = nodeAtLocation.get(supplyLoc);
                     Point2D destination = position.apply(demandLoc);
 
-                    // 1. Mettre à jour la location
+                    // Mettre à jour la location
                     Tiles.setLocation(node, demandLoc);
 
-                    // 2. Créer et ajouter l'animation
+                    // Créer et ajouter l'animation
                     parallelTransition.getChildren().add(
                             new RelocationTransition(node, destination, TRANSITION_DURATION));
                 }
             });
             return parallelTransition;
     }
+
+        /// Apparie au maximum {@code min(supply.size(), demand.size())} éléments entre
+        /// {@code supply} et {@code demand}, en retirant les éléments consommés des deux listes,
+        /// et retourne les paires formées (clé = offre, valeur = demande).
+        private static Map<TileLocation, TileLocation> matchSupplyToDemand(
+                List<TileLocation> supply, List<TileLocation> demand) {
+            Map<TileLocation, TileLocation> pairs = new HashMap<>();
+            int count = Math.min(supply.size(), demand.size());
+            for (int i = 0; i < count; i++)
+                pairs.put(supply.removeFirst(), demand.removeFirst());
+            return pairs;
+        }
 }

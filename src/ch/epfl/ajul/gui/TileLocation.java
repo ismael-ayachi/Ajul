@@ -41,7 +41,7 @@ public sealed interface TileLocation {
     record OnWall(PlayerId playerId, TileDestination.Pattern pattern, TileKind.Colored tileKind)
             implements TileLocation {}
 
-    /// Emplacement d'une tuile sur le plancher d'un joueur.
+    /// Emplacement d'une tuile sur la ligne plancher d'un joueur.
     ///
     /// @param playerId le joueur propriétaire du plancher
     /// @param index    la position de la tuile sur le plancher (entre 0 et 6 inclus)

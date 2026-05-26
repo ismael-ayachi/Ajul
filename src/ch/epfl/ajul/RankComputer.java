@@ -29,8 +29,9 @@ public final class RankComputer {
         for (PlayerId playerId : gameState.playerIds()) {
             int points = PkPlayerStates.points(gameState.pkPlayerStates(), playerId);
             int playerWall = PkPlayerStates.pkWall(gameState.pkPlayerStates(), playerId);
-            int rankScore = points << POINTS_WEIGHT_OFFSET | fullRowCount(playerWall);
-            array[playerId.ordinal()] = (rankScore << SCORE_OFFSET) | playerId.ordinal();
+            int score = points << POINTS_WEIGHT_OFFSET | fullRowCount(playerWall);
+            int rankScore = (score << SCORE_OFFSET) | playerId.ordinal();
+            array[playerId.ordinal()] = rankScore;
         }
         Arrays.sort(array);
 

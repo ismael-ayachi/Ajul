@@ -50,22 +50,21 @@ public final class HeuristicMoveSelector {
                 TileKind.Colored color = PkMove.color(packedMoveArray[i]);
                 TileSource source = PkMove.source(packedMoveArray[i]);
                 int remaining = line.capacity() - PkPatterns.size(pattern, line);
-                int tileCount = PkTileSet.countOf(
-                        gameState.pkTileSources().get(source.index()), color);
+                int tileCount = PkTileSet.countOf(gameState.pkTileSources().get(source.index()), color);
 
-                //Cas 1 : les coups remplissent totalement la ligne de motif
+                // Cas 1 : les coups remplissent totalement la ligne de motif
                 if (tileCount == remaining)
                     res1.add(i, randomGenerator);
 
-                //Cas 2 : les coups remplissent partiellement une ligne de motif
+                // Cas 2 : les coups remplissent partiellement une ligne de motif
                 else if (tileCount < remaining)
                     res2.add(i, randomGenerator);
 
-                //Cas 3 : Autres coups/Les coups qui remplissent une ligne de motif avec des tuiles excédentaires
+                // Cas 3 : Autres coups/Les coups qui remplissent une ligne de motif avec des tuiles excédentaires
                 else
                     res3.add(i, randomGenerator);
             }
-            //Cas 3 : Autres coups/Les coups qui remplissent la ligne plancher
+            // Cas 3 : Autres coups/Les coups qui remplissent la ligne plancher
             else res3.add(i, randomGenerator);
         }
 

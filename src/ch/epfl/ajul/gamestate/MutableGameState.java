@@ -117,7 +117,6 @@ public final class MutableGameState implements ReadOnlyGameState {
         }
 
         // Mise à jour de pkUniqueTileSources
-
         pkUniqueTileSources = PkIntSet32.EMPTY;
         loop :
         for (int i = 1; i < game.tileSourcesCount(); i++) {

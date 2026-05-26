@@ -27,7 +27,7 @@ public final class MctsNode {
     private static final int MOVE_OFFSET = 0;
     private static final int MOVE_MASK = (1 << MOVE_BITS) - 1;
 
-    /// Constante d'exploration UCB1 équilibrant exploitation et exploration.
+    /// Constante d'exploration pour le calcul de la priorité des nœuds.
     private static final int EXPLORATION_CONSTANT = 80;
 
     private MctsNode(int pkMove, int initialCount){
@@ -84,7 +84,7 @@ public final class MctsNode {
     /// Retourne l'index de l'enfant à explorer lors de la phase de sélection MCTS.
     /// <p>
     /// Si certains enfants n'ont pas encore été visités, retourne le prochain non visité.
-    /// Sinon, retourne l'index de l'enfant maximisant la formule UCB1.
+    /// Sinon, retourne l'index de l'enfant ayant la priorité maximale.
     ///
     /// @return l'index de l'enfant à explorer
     public int indexOfChildToExplore() {

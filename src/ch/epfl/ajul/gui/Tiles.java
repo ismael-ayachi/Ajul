@@ -32,11 +32,11 @@ public record Tiles(Map<TileLocation, Node> anchors, Map<TileKind, List<Node>> t
     /// @param game la configuration de la partie
     /// @return les tuiles et ancres de la partie
     public static Tiles create(Game game) {
-        Map<TileLocation, Node> anchors = new HashMap<>(); //Map immuable à ajouter ?
+        Map<TileLocation, Node> anchors = new HashMap<>();
         putInAnchor(anchors, game);
-        Map<TileKind, List<Node>> tiles = new HashMap<>(); //Map immuable à ajouter ?
+        Map<TileKind, List<Node>> tiles = new HashMap<>();
         putInTiles(tiles);
-        return new Tiles(anchors, tiles);
+        return new Tiles(Collections.unmodifiableMap(anchors), Collections.unmodifiableMap(tiles));
     }
 
     /// Retourne l'emplacement actuellement associé au nœud {@code node}.

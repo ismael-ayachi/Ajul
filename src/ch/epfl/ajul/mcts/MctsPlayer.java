@@ -19,6 +19,7 @@ import java.util.random.RandomGeneratorFactory;
 ///
 /// @author Ismaël Ayachi (393163)
 public final class MctsPlayer implements Player {
+    private static final int RANK_OFFSET = 8;
 
     private final RandomGeneratorFactory<RandomGenerator> randomGeneratorFactory;
     private final int iterationCount;
@@ -55,7 +56,7 @@ public final class MctsPlayer implements Player {
             MctsNode currentNode = root;
             int depth = 0;
 
-            //Sélection
+            // Sélection
             while (currentNode.gameCount() > 0 && !mutableGameState.isGameOver()){
                 if (currentNode.children == null){
                     int validMovesCount = mutableGameState.uniqueValidMoves(validMoves);
@@ -85,11 +86,11 @@ public final class MctsPlayer implements Player {
                 }
             }
 
-            //Simulation
+            // Simulation
             while (!mutableGameState.isGameOver()){
                 int validMovesCount = mutableGameState.uniqueValidMoves(validMoves);
-                int selectedMove =
-                        HeuristicMoveSelector.selectMove(endGameGenerator, mutableGameState, validMoves, validMovesCount);
+                int selectedMove = HeuristicMoveSelector.selectMove(endGameGenerator, mutableGameState,
+                        validMoves, validMovesCount);
                 mutableGameState.registerMove(validMoves[selectedMove]);
                 if (mutableGameState.isRoundOver()) {
                     mutableGameState.endRound();
@@ -100,14 +101,14 @@ public final class MctsPlayer implements Player {
             }
             mutableGameState.endGame();
 
-            //Calcul et propagation des points
+            // Calcul et propagation des points
             RankComputer.playersRank(mutableGameState, playersRank);
             ReadOnlyIntArray pkPlaterStates = mutableGameState.pkPlayerStates();
             for (int j = 0; j < gameState.game().playersCount(); j++){
                 PlayerId playerId = PlayerId.ALL.get(j);
                 int rankComplement = (mutableGameState.game().playersCount() - 1) - playersRank[j];
                 int points = PkPlayerStates.points(pkPlaterStates, playerId);
-                int generalized = rankComplement * 256 + points;
+                int generalized = (rankComplement << RANK_OFFSET) | points;
                 generalizedPoints[j] = generalized;
             }
 
@@ -118,8 +119,8 @@ public final class MctsPlayer implements Player {
             }
         }
 
-        Optional<MctsNode> maxAverageNode =
-                Arrays.stream(root.children).max(Comparator.comparingDouble(MctsNode::averagePoints));
+        Optional<MctsNode> maxAverageNode = Arrays.stream(root.children)
+                .max(Comparator.comparingDouble(MctsNode::averagePoints));
 
         return Move.ofPacked(maxAverageNode.orElseThrow().pkMove());
     }
