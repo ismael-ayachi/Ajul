@@ -27,7 +27,7 @@ public final class TileOverlayUI {
     private final Pane root;
     private final Map<TileLocation, Node> anchors;
 
-    private static final Duration ANIMATION_DURATION = Duration.seconds(1d / 8d);
+    private static final Duration ANIMATION_DURATION = Duration.seconds(1. / 8.);
     private static final Point2D OFFBOARD_POSITION = new Point2D(-Tiles.TILE_WIDTH, -Tiles.TILE_HEIGHT);
 
     /// Plans de profondeur des nœuds, du plus en arrière (STILL) au plus en avant (POINTS).
@@ -47,13 +47,6 @@ public final class TileOverlayUI {
         this.anchors = anchors;
     }
 
-    /// Retourne la racine du graphe de scène de cette couche.
-    ///
-    /// @return la racine de la couche
-    public Node root() {
-        return root;
-    }
-
     /// Construit la couche d'affichage des tuiles, branche l'animation sur les changements
     /// d'état et installe la gestion du glisser-déposer pour les coups des joueurs humains.
     ///
@@ -71,6 +64,7 @@ public final class TileOverlayUI {
 
         Pane root = new Pane();
 
+        // Position à l'écran d'un emplacement, ou hors plateau si l'ancre est absente
         Function<TileLocation, Point2D> position = loc -> {
             Node anchor = tiles.anchors().get(loc);
             return anchor != null
@@ -78,6 +72,7 @@ public final class TileOverlayUI {
                     : OFFBOARD_POSITION;
         };
 
+        // Animation des tuiles à chaque changement d'état
         Platform.runLater(() -> observer.subscribe(gameState -> {
             Animation animation = TileAnimator.animateTiles(position, tiles.tiles(), gameState);
             animation.play();
@@ -89,9 +84,11 @@ public final class TileOverlayUI {
             for (int i = 0; i < nodes.size(); i++) {
                 Node node = nodes.get(i);
 
+                // Placement initial hors plateau
                 Tiles.setLocation(node, new TileLocation.OffBoard(tileKind, i));
                 node.relocate(OFFBOARD_POSITION.getX(), OFFBOARD_POSITION.getY());
 
+                // Glisser-déposer (tuiles colorées uniquement)
                 if (tileKind instanceof TileKind.Colored){
                     node.setOnMousePressed(e -> e.setDragDetect(true));
                     node.setOnDragDetected(e -> {
@@ -99,16 +96,16 @@ public final class TileOverlayUI {
                         if (validMoves.isEmpty() || !(loc instanceof TileLocation.OnSource)) return;
 
                         TileSource source = ((TileLocation.OnSource) loc).tileSource();
-                        potentialMoves.clear();
-                        //Assert potentialMoves ?
+
+                        // Coups potentiels associés à la tuile glissée
                         for (Move move: validMoves) {
                             if (move.source().equals(source) && move.tileColor().equals(tileKind))
                                 potentialMoves.add(move);
                         }
-                        //Assert potentialMoves ?
                         node.startFullDrag();
                         root.setMouseTransparent(true);
 
+                        // Toutes les tuiles de la même source bougent ensemble
                         List<Node> nodesToMove = nodes.stream()
                                 .filter(n -> {
                                     TileLocation currentLoc = Tiles.location(n);
@@ -119,6 +116,7 @@ public final class TileOverlayUI {
 
                         for (Node nodeToMove: nodesToMove) Layer.MOVING.order(nodeToMove);
 
+                        // Suivi du curseur pendant le glissement
                         node.setOnMouseDragged(de -> {
                             double dx = de.getSceneX() - e.getSceneX();
                             double dy = de.getSceneY() - e.getSceneY();
@@ -128,6 +126,7 @@ public final class TileOverlayUI {
                                 }
                             });
 
+                        // Validation ou retour à la position d'origine au relâchement
                         node.setOnMouseReleased( _ -> {
                             for (Node nodeToMove : nodesToMove){
                                 if (moveAccepted[0]){
@@ -147,11 +146,13 @@ public final class TileOverlayUI {
                             for (Node nodeToMove : nodesToMove) {
                                 Layer.STILL.order(nodeToMove);
                             }
+
+                            // Nettoyage des gestionnaires et de l'état
                             node.setOnMouseDragReleased(null);
                             node.setOnMouseDragged(null);
-                            moveAccepted[0] = false;
                             root.setMouseTransparent(false);
-
+                            moveAccepted[0] = false;
+                            potentialMoves.clear();
 
                         });
                     });
@@ -160,6 +161,13 @@ public final class TileOverlayUI {
         });
 
         return new TileOverlayUI(root, tiles.anchors());
+    }
+
+    /// Retourne la racine du graphe de scène de cette couche.
+    ///
+    /// @return la racine de la couche
+    public Node root() {
+        return root;
     }
 
     /// Affiche le nombre de points {@code points} centré au-dessus de l'emplacement

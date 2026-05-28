@@ -20,6 +20,7 @@ import java.util.random.RandomGeneratorFactory;
 /// @author Ismaël Ayachi (393163)
 public final class MctsPlayer implements Player {
     private static final int RANK_OFFSET = 8;
+    private static final int INITIAL_SIZE = 32;
 
     private final RandomGeneratorFactory<RandomGenerator> randomGeneratorFactory;
     private final int iterationCount;
@@ -28,7 +29,7 @@ public final class MctsPlayer implements Player {
     ///
     /// @param randomGeneratorFactory la fabrique de générateurs aléatoires utilisée pour les simulations
     /// @param iterationCount         le nombre d'itérations MCTS effectuées à chaque coup
-    public MctsPlayer(RandomGeneratorFactory<RandomGenerator> randomGeneratorFactory, int iterationCount ){
+    public MctsPlayer(RandomGeneratorFactory<RandomGenerator> randomGeneratorFactory, int iterationCount) {
         this.randomGeneratorFactory = randomGeneratorFactory;
         this.iterationCount = iterationCount;
     }
@@ -42,10 +43,10 @@ public final class MctsPlayer implements Player {
     @Override
     public Move nextMove(ReadOnlyGameState gameState) {
         short[] validMoves = new short[Move.MAX_MOVES];
-        int[] playersRank = new int[gameState.game().playersCount()]; //Passé à playersRank de RankComputer
+        int[] playersRank = new int[gameState.game().playersCount()];
         int[] generalizedPoints = new int[gameState.game().playersCount()];
-        byte[] playerAtDepth = new byte[32];
-        MctsNode[] nodeAtDepth = new MctsNode[32];
+        byte[] playerAtDepth = new byte[INITIAL_SIZE];
+        MctsNode[] nodeAtDepth = new MctsNode[INITIAL_SIZE];
 
         MctsNode root = MctsNode.newRoot();
         RandomGenerator endGameGenerator = randomGeneratorFactory.create(gameState.pkTileBag());
@@ -66,7 +67,6 @@ public final class MctsPlayer implements Player {
                         currentNode.children[j] = MctsNode.newMoveNode(validMoves[j]);
                     }
                 }
-
                 int toExploreIndex = currentNode.indexOfChildToExplore();
                 if (depth == nodeAtDepth.length) {
                     nodeAtDepth = Arrays.copyOf(nodeAtDepth,   nodeAtDepth.length << 1);
@@ -108,7 +108,7 @@ public final class MctsPlayer implements Player {
                 PlayerId playerId = PlayerId.ALL.get(j);
                 int rankComplement = (mutableGameState.game().playersCount() - 1) - playersRank[j];
                 int points = PkPlayerStates.points(pkPlaterStates, playerId);
-                int generalized = (rankComplement << RANK_OFFSET) | points;
+                int generalized = (rankComplement << RANK_OFFSET) + points;
                 generalizedPoints[j] = generalized;
             }
 

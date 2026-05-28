@@ -61,12 +61,12 @@ public final class BoardUI {
         HBox root = new HBox();
         Map<BonusKey, Text> bonusMap = new HashMap<>();
 
-        //Grille des sources de tuiles
+        // Grille des sources de tuiles
         GridPane sourceGrid = new GridPane();
         sourceGrid.setId("tile-sources");
         root.getChildren().add(sourceGrid);
 
-        //Fabriques
+        // Fabriques
         for (TileSource.Factory factory : game.factories()) {
             HBox factoryBox = new HBox();
             factoryBox.getStyleClass().addAll(TILE_GROUP_CLASS, TILE_SOURCE_CLASS);
@@ -78,7 +78,7 @@ public final class BoardUI {
             sourceGrid.add(factoryBox, index % FACTORY_GRID_COLUMNS, index / FACTORY_GRID_COLUMNS);
         }
 
-        //Zone centrale
+        // Zone centrale
         GridPane centerAreaGrid = new GridPane();
         centerAreaGrid.getStyleClass().addAll(TILE_GROUP_CLASS, TILE_SOURCE_CLASS);
         for (int i = 0; i < game.centralAreaMaxSize(); i++) {
@@ -88,7 +88,7 @@ public final class BoardUI {
         int centerAreaRow = (game.factoriesCount() + 1) / 2;
         sourceGrid.add(centerAreaGrid, 0, centerAreaRow, 2, 1);
 
-        //Plateaux des joueurs
+        // Plateaux des joueurs
         GridPane playerBoardGrid = new GridPane();
         playerBoardGrid.setId("player-boards");
         root.getChildren().add(playerBoardGrid);
@@ -100,7 +100,7 @@ public final class BoardUI {
             currentPlayerBoard.getStyleClass().add(PLAYER_BOARD_CLASS);
             playerBoards.put(playerId, currentPlayerBoard);
 
-            //Nom et points des joueurs
+            // Nom et points des joueurs
             ObservableValue<Integer> pointsObserver = observer.map(gameState ->
                     PkPlayerStates.points(gameState.pkPlayerStates(), playerId));
             Text identity = new Text();
@@ -110,23 +110,21 @@ public final class BoardUI {
 
             currentPlayerBoard.getChildren().add(identity);
 
-            //Contenu du plateau du joueur courant
+            // Contenu du plateau du joueur courant
             VBox gridContent = new VBox();
             currentPlayerBoard.getChildren().add(gridContent);
 
-            //Lignes de motif et mur
+            // Lignes de motif et mur
             GridPane patternWall = new GridPane();
             patternWall.getStyleClass().add(LINES_AND_WALL_CLASS);
-
             gridContent.getChildren().add(patternWall);
 
             for (int row = 0; row < PkWall.WALL_WIDTH; row++){
                 HBox patternBox = new HBox();
                 patternBox.getStyleClass().addAll(TILE_DESTINATION_CLASS , TILE_GROUP_CLASS);
-
                 TileDestination.Pattern line = TileDestination.Pattern.ALL.get(row);
 
-                //Gestion des événements
+                // Gestion des événements
                 patternBox.addEventHandler(MouseDragEvent.MOUSE_DRAG_ENTERED, ( _ -> {
                     if (observer.getValue().currentPlayerId() != playerId) return;
                     boolean canAccept = potentialMoves.stream()
@@ -151,7 +149,7 @@ public final class BoardUI {
                                 }});
                 });
 
-                //Cases de la ligne de motif
+                // Cases de la ligne de motif
                 GridPane.setHalignment(patternBox, HPos.RIGHT);
                 GridPane.setFillWidth(patternBox, false);
                 for (int count = 0; count < row + 1; count++) {
@@ -160,12 +158,12 @@ public final class BoardUI {
                 }
                 patternWall.add(patternBox, 0, row);
 
-                //Texte du bonus associé à une couleur complète
+                // Texte du bonus associé à une couleur complète
                 Text fullColorBonus = new Text("+" + Points.FULL_COLOR_BONUS_POINTS);
                 fullColorBonus.setVisible(false);
                 patternWall.add(fullColorBonus, 1, row);
 
-                //Cases du mur
+                // Cases du mur
                 for (int col = 0; col < PkWall.WALL_WIDTH ; col++) {
                     TileKind.Colored color =  PkWall.colorAt(line, col);
                     bonusMap.put(new BonusKey(playerId, color), fullColorBonus);
@@ -174,14 +172,14 @@ public final class BoardUI {
                     patternWall.add(anchor, col + 2, row);
                 }
 
-                //Texte du bonus associé à une ligne complète
+                // Texte du bonus associé à une ligne complète
                 Text fullRowBonus = new Text("+" + Points.FULL_ROW_BONUS_POINTS);
                 fullRowBonus.setVisible(false);
                 bonusMap.put(new BonusKey(playerId, line), fullRowBonus);
                 patternWall.add(fullRowBonus, PkWall.WALL_WIDTH + 2, row);
             }
 
-            //Texte de bonus associé à une colonne complète
+            // Texte du bonus associé à une colonne complète
             for (int col = 0; col < PkWall.WALL_WIDTH ; col++) {
                 Text fullColBonus = new Text("+" + Points.FULL_COLUMN_BONUS_POINTS);
                 fullColBonus.setVisible(false);
@@ -190,12 +188,12 @@ public final class BoardUI {
                 patternWall.add(fullColBonus, col + 2, PkWall.WALL_HEIGHT);
             }
 
-            //Ligne plancher
+            // Ligne plancher
             HBox floor = new HBox();
             floor.getStyleClass().addAll(FLOOR_CLASS, TILE_GROUP_CLASS, TILE_DESTINATION_CLASS);
             gridContent.getChildren().add(floor);
 
-            //Gestion des événements
+            // Gestion des événements
             floor.addEventHandler(MouseDragEvent.MOUSE_DRAG_ENTERED, _ -> {
                 if (observer.getValue().currentPlayerId() != playerId) return;
                 boolean canAccept = potentialMoves.stream()
@@ -204,9 +202,8 @@ public final class BoardUI {
                     floor.getStyleClass().add(ACCEPTING_CLASS);
             });
 
-            floor.addEventHandler(MouseDragEvent.MOUSE_DRAG_EXITED, _ -> {
-                floor.getStyleClass().remove(ACCEPTING_CLASS);
-            });
+            floor.addEventHandler(MouseDragEvent.MOUSE_DRAG_EXITED, _ ->
+                    floor.getStyleClass().remove(ACCEPTING_CLASS));
 
             floor.addEventHandler(MouseDragEvent.MOUSE_DRAG_RELEASED, _ -> {
                 if (observer.getValue().currentPlayerId() != playerId) return;
@@ -221,7 +218,7 @@ public final class BoardUI {
                 }
             });
 
-            //Cases de la ligne plancher avec leur pénalité
+            // Cases de la ligne plancher avec leur pénalité
             for (int i = 0; i < TileDestination.FLOOR.capacity(); i++){
                 floor.getChildren().add(new VBox(
                     anchors.get(new TileLocation.OnFloor(playerId, i)),
@@ -232,13 +229,13 @@ public final class BoardUI {
                     playerId.ordinal() / PLAYER_BOARD_GRID_COLUMNS);
         }
 
-        //Mise à jour du bord du plateau du joueur courant
-        observer.map(ImmutableGameState::currentPlayerId).subscribe(currentId -> {
+        // Mise à jour du bord du plateau du joueur courant
+        observer.map(ImmutableGameState::currentPlayerId).subscribe(currentId ->
             playerBoards.forEach((playerId, pane) -> {
                 if (playerId == currentId) pane.getStyleClass().add(CURRENT_PLAYER_CLASS);
                 else pane.getStyleClass().remove(CURRENT_PLAYER_CLASS);
-            });
-        });
+            }));
+
 
         return new BoardUI(root, bonusMap);
     }

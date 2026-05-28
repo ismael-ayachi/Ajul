@@ -57,7 +57,12 @@ public final class Main extends Application {
         Parameters parameters = getParameters();
         List<Game.PlayerDescription> playerDescriptions = new ArrayList<>();
         List<String> names = parameters.getUnnamed();
-        for (int i = 0; i < names.size(); i++) {
+        int playersNumber = names.size();
+        if (!(playersNumber >= 2 && playersNumber <= 4)) {
+            throw new Error("Nombre de joueurs invalide");
+        }
+
+        for (int i = 0; i < playersNumber; i++) {
             String pName = names.get(i);
             PlayerId playerId = PlayerId.ALL.get(i);
             if (pName.startsWith("_")) {
@@ -99,7 +104,7 @@ public final class Main extends Application {
             PointsObserver pointsObserver = createPointsObserver(tileOverlayUI, boardUI);
             MutableGameState gameState = new MutableGameState(ImmutableGameState.initial(game), pointsObserver);
             gameState.fillFactories(rng);
-            updateGameStateP(gameStateP, gameState.immutable());
+            gameStateUpdate(gameStateP, gameState.immutable());
             // Créer les instances MctsPlayer pour les joueurs IA
             int playersCount = parameters.getUnnamed().size();
             Map<PlayerId, Player> aiPlayers = new HashMap<>();
@@ -118,16 +123,16 @@ public final class Main extends Application {
                         ? playHumanMove(gameState, validMoves, moveQueue)
                         : aiPlayers.get(current).nextMove(gameState);
                 gameState.registerMove(move.packed());
-                updateGameStateP(gameStateP, gameState.immutable());
+                gameStateUpdate(gameStateP, gameState.immutable());
                 if (gameState.isRoundOver()) {
                     pause(1);
                     gameState.endRound();
                     if (!gameState.isGameOver()) {
-                        updateGameStateP(gameStateP, gameState.immutable());
+                        gameStateUpdate(gameStateP, gameState.immutable());
                         pause(0.7);
                         gameState.fillFactories(rng);
                     }
-                    updateGameStateP(gameStateP, gameState.immutable());
+                    gameStateUpdate(gameStateP, gameState.immutable());
                 }
             }
             gameState.endGame();
@@ -159,7 +164,7 @@ public final class Main extends Application {
         }
     }
 
-    private static void updateGameStateP(ObjectProperty<ImmutableGameState> gameStateP,
+    private static void gameStateUpdate(ObjectProperty<ImmutableGameState> gameStateP,
                                          ImmutableGameState immutableGameState) {
         Platform.runLater(() -> gameStateP.set(immutableGameState));
     }
