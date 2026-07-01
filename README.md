@@ -137,7 +137,7 @@ java --module-path "out:$PATH_TO_FX" \
 
 ---
 
-## Command‑Line Arguments
+## Command-Line Arguments
 
 The `Main` class configures the game entirely from its launch arguments:
 
