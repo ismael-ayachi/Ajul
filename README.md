@@ -6,7 +6,7 @@ Ajul is a full digital version of Azul supporting **2 to 4 players**, where each
 
 <p align="center">
   <img src="https://cs108.epfl.ch/p/i/ajul-numbered-gui;64.png" alt="Ajul graphical interface" width="720">
-</p>
+</p> 
 
 ---
 
